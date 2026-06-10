@@ -26,3 +26,4 @@
 .\objects\motor.o: ..\code\pid.h
 .\objects\motor.o: ..\code\gray_track.h
 .\objects\motor.o: ..\code\filter.h
+.\objects\motor.o: ..\code\uart_tune.h

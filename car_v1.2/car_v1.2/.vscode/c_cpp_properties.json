@@ -7,6 +7,7 @@
                 "${workspaceFolder}/ml_libs",
                 "${workspaceFolder}/sys",
                 "${workspaceFolder}/code",
+                "${workspaceFolder}/menu",
                 "D:\\keil_v5\\ARM\\ARMCC\\include",
                 "D:\\keil_v5\\ARM\\ARMCC\\include\\rw"
             ],

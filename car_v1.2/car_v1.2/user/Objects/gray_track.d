@@ -25,3 +25,4 @@
 .\objects\gray_track.o: ..\code\pid.h
 .\objects\gray_track.o: ..\code\gray_track.h
 .\objects\gray_track.o: ..\code\filter.h
+.\objects\gray_track.o: ..\code\uart_tune.h

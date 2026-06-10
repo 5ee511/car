@@ -19,4 +19,13 @@ unsigned char digtal(unsigned char channel);
 
 extern uint16_t g_sensor_data[GRAYSCALE_SENSOR_CHANNELS];
 
+// 运行时速度变量（可被 UART3 调参修改）
+extern int16_t g_speed_fast;
+extern int16_t g_speed_slow;
+extern int16_t g_speed_min;
+
+// 转向 PD 参数（可被 UART3 调参修改）
+extern float g_track_kp;     // 比例系数
+extern float g_track_kd;     // 微分系数
+
 #endif

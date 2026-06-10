@@ -2,9 +2,7 @@
 #define _motor_h
 #include "headfile.h"
 
-// TB6612 STBY 引脚 PB12 (如果已硬接3.3V可忽略此宏)
-#define MOTOR_STBY_PORT  GPIO_B
-#define MOTOR_STBY_PIN   Pin_12
+// TB6612 STBY 已硬接 3.3V，PB12 空闲（原菜单按键 Key2 已移除）
 
 void motor_init(void);
 void motorA_duty(int duty);

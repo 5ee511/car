@@ -24,9 +24,7 @@ int speed_now;           // 当前转速计算值（暂未使用）
 // 电机驱动初始化函数
 void motor_init()
 {
-    // STBY 使能 (PB12) — 如果已硬接3.3V可删掉  STBY enable
-    gpio_init(MOTOR_STBY_PORT, MOTOR_STBY_PIN, OUT_PP);
-    gpio_set(MOTOR_STBY_PORT, MOTOR_STBY_PIN, 1);     // 拉高 STBY 拉高使能TB6612
+    // STBY 已硬接 3.3V，无需软件控制（PB12 空闲，原菜单按键已移除）
 
     // 初始化 PWM 信号（定时器2，通道1和通道2，频率 1kHz）
     pwm_init(TIM_2, TIM2_CH1, 1000);   // PWMA 输出

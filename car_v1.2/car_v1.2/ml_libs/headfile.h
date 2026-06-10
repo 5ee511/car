@@ -12,7 +12,7 @@
 #include "ml_uart.h"
 #include "ml_tim.h"
 #include "ml_pwm.h"
-#include "ml_oled.h"
+#include "ml_oled.h"                // OLED 驱动（行列坐标API）
 #include "ml_delay.h"
 #include "ml_gpio.h"
 #include "ml_nvic.h"
@@ -27,5 +27,6 @@
 #include "pid.h"
 #include "gray_track.h"
 #include "filter.h"
+#include "uart_tune.h"
 
 #endif

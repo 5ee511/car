@@ -33,23 +33,23 @@ void motor_target_set(int spe1, int spe2)
 {
 	if(spe1 >= 0)
 	{
-		motorA_dir = 1;  // A正转
+		motorA_dir = 0;  // A正转 (匹配实际接线)
 		motorA.target = spe1;
 	}
 	else
 	{
-		motorA_dir = 0;
+		motorA_dir = 1;
 		motorA.target = -spe1;
 	}
 	
 	if(spe2 >= 0)
 	{
-		motorB_dir = 1;  // B正转
+		motorB_dir = 0;  // B正转 (匹配实际接线)
 		motorB.target = spe2;
 	}
 	else
 	{
-		motorB_dir = 0;
+		motorB_dir = 1;
 		motorB.target = -spe2;
 	}
 }
@@ -85,7 +85,7 @@ void pid_control()
 	motorA_duty(motorA.out);
 	motorB_duty(motorB.out);
 	
-	//datavision_send();
+	datavision_send();
 }
 void pid_cal(pid_t *pid)
 {

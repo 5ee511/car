@@ -27,3 +27,4 @@
 .\objects\ml_hmc5883l.o: ..\code\pid.h
 .\objects\ml_hmc5883l.o: ..\code\gray_track.h
 .\objects\ml_hmc5883l.o: ..\code\filter.h
+.\objects\ml_hmc5883l.o: ..\code\uart_tune.h

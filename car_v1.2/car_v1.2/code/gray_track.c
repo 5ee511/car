@@ -54,90 +54,164 @@ void sensor_test(void) {
 //=====================================================================================
 //  巡线速度配置 (可调)  Line-following speed config (adjustable)
 //=====================================================================================
-#define TRACK_SPEED_FAST    25   // 直道高速  Straight fast
-#define TRACK_SPEED_MED     18   // 中速转弯  Medium turn
-#define TRACK_SPEED_SLOW    12   // 慢速转弯  Slow turn
-#define TRACK_SPEED_SHARP    8   // 急转弯    Sharp turn
-#define TRACK_SPEED_MIN      4   // 原地微调  In-place adjust
+//                     ★ 所有可调参数都在这里 ★
+//=====================================================================================
+#define TRACK_SPEED_FAST    25   // 直道/基准速度
+#define TRACK_SPEED_SLOW    14   // 丢线搜索速度 (FIND时用)
+#define TRACK_SPEED_MIN      2   // 内轮最低速 (调小=差速大, 调大=差速小)
+float g_track_kp = 18.0f;       // 转向P: 越大转弯越猛
+float g_track_kd = 6.0f;        // 转向D: 越大越稳
+#define STEER_MAX        18     // 转向输出上限 (最大差速 ≈ 这个值×2)
 //=====================================================================================
 
+int16_t g_speed_fast  = TRACK_SPEED_FAST;
+int16_t g_speed_slow  = TRACK_SPEED_SLOW;
+int16_t g_speed_min   = TRACK_SPEED_MIN;
+
 /**
- * @brief 巡线控制函数 — 分支判断法 (LINE_RAW_VALUE=踩线值)
- *        Line following — branch-based
+ * @brief 巡线控制函数 — 分支查表 + 转向PD + 防抖
+ *
+ *        三层架构:
+ *          第1层: 8路传感器 → 状态分支 → error值(-6~+6)
+ *          第2层: 防抖滤波 (连续2次相同分支才更新error)
+ *          第3层: 转向PD (位置式PD, error→steer_out)
+ *                 L = base - steer_out,  R = base + steer_out
+ *
+ *        调参命令: KP<值> / KD<值> (UART3)
  */
 void track(void)
 {
     uint8_t d1 = D1, d2 = D2, d3 = D3, d4 = D4;
     uint8_t d5 = D5, d6 = D6, d7 = D7, d8 = D8;
-    #define ON  LINE_RAW_VALUE     // 踩线  on line
-    #define OFF !LINE_RAW_VALUE    // 离线  off line
+    #define ON  LINE_RAW_VALUE
+    #define OFF !LINE_RAW_VALUE
 
     int16_t L, R;
 
     // ============================================================
-    // 情况1: 正中间 (X4或X5踩线) — 直行
+    // 第1层: 分支查表 → 原始error值 (-6 ~ +6)
     // ============================================================
+    float raw_error;
+    uint8_t branch;
+
     if ((d4 == ON && d5 == ON) || (d4 == ON && d5 != ON) || (d4 != ON && d5 == ON))
     {
-        strcpy(g_track_state, "GO  ");
-        L =  TRACK_SPEED_FAST;
-        R =  TRACK_SPEED_FAST;
+        branch = 0;  raw_error =  0.0f;   // GO  正中直行
     }
     else if (d3 == ON && d4 != ON)
     {
-        strcpy(g_track_state, "R1  ");
-        L =  TRACK_SPEED_SLOW;
-        R =  TRACK_SPEED_FAST;
+        branch = 1;  raw_error =  2.0f;   // R1  线偏左, 需右转
     }
     else if (d2 == ON)
     {
-        strcpy(g_track_state, "R2  ");
-        L =  TRACK_SPEED_SHARP;
-        R =  TRACK_SPEED_MED;
+        branch = 2;  raw_error =  4.3f;   // R2  线偏左较多
     }
     else if (d1 == ON)
     {
-        strcpy(g_track_state, "R3!!");
-        L =  TRACK_SPEED_MIN;
-        R =  TRACK_SPEED_FAST;
+        branch = 3;  raw_error =  6.0f;   // R3  线在最左, 急转
     }
     else if (d6 == ON && d5 != ON)
     {
-        strcpy(g_track_state, "L1  ");
-        L =  TRACK_SPEED_FAST;
-        R =  TRACK_SPEED_SLOW;
+        branch = 4;  raw_error = -2.0f;   // L1  线偏右, 需左转
     }
     else if (d7 == ON)
     {
-        strcpy(g_track_state, "L2  ");
-        L =  TRACK_SPEED_MED;
-        R =  TRACK_SPEED_SHARP;
+        branch = 5;  raw_error = -4.3f;   // L2  线偏右较多
     }
     else if (d8 == ON)
     {
-        strcpy(g_track_state, "L3!!");
-        L =  TRACK_SPEED_FAST;
-        R =  TRACK_SPEED_MIN;
+        branch = 6;  raw_error = -6.0f;   // L3  线在最右, 急转
     }
     else if (d1 == OFF && d2 == OFF && d3 == OFF && d4 == OFF
           && d5 == OFF && d6 == OFF && d7 == OFF && d8 == OFF)
     {
-        strcpy(g_track_state, "FIND");    // 全白=丢线   All white = lost
-        L = -TRACK_SPEED_SLOW;
-        R =  TRACK_SPEED_SLOW;
+        branch = 7;  raw_error = 0.0f;    // FIND 全白丢线 (error保持)
     }
     else if (d1 == ON && d2 == ON && d3 == ON && d4 == ON
           && d5 == ON && d6 == ON && d7 == ON && d8 == ON)
     {
-        strcpy(g_track_state, "CROSS");   // 全黑=十字   All black = cross
-        L =  TRACK_SPEED_FAST;
-        R =  TRACK_SPEED_FAST;
+        branch = 8;  raw_error = 0.0f;    // CROSS 全黑十字
     }
     else
     {
-        strcpy(g_track_state, "----");
-        L =  TRACK_SPEED_MED;
-        R =  TRACK_SPEED_MED;
+        branch = 9;  raw_error = 0.0f;    // 兜底
+    }
+
+    // ============================================================
+    // 第2层: 防抖 — 已禁用 (直接使用raw_error)
+    // ============================================================
+    float error = raw_error;
+    static uint8_t ever_seen_line = 0;
+    if (branch != 7) ever_seen_line = 1;
+
+    // FIND丢线特殊处理: 保持上一帧error (顺着惯性走)
+    static float last_valid_error = 0.0f;
+    if (branch == 7)
+    {
+        if (!ever_seen_line)
+        {
+            L = -g_speed_slow;
+            R =  g_speed_slow;
+            strcpy(g_track_state, "FIND");
+            motor_target_set(L, R);
+            return;
+        }
+        error = last_valid_error;
+    }
+    else
+    {
+        last_valid_error = error;
+    }
+
+    // ============================================================
+    // 第3层: 转向PD — error → steer_out
+    //        公式: steer_out = Kp*error + Kd*(error - prev_error)
+    // ============================================================
+    static float prev_error = 0.0f;
+
+    float diff  = error - prev_error;
+
+    float steer_out = g_track_kp * error + g_track_kd * diff;
+    prev_error = error;
+
+    // 限幅
+    if (steer_out >  STEER_MAX) steer_out =  STEER_MAX;
+    if (steer_out < -STEER_MAX) steer_out = -STEER_MAX;
+
+    // ============================================================
+    // error → 左右轮速度 (差速转向)
+    // ============================================================
+    // 弯道减速: |error|越大, base越小
+    float abs_err = (error > 0.0f) ? error : -error;
+    float curve_factor = 1.0f - abs_err / 8.0f * 0.4f;
+    int16_t base = (int16_t)((float)g_speed_fast * curve_factor);
+    if (base < g_speed_min) base = g_speed_min;
+
+    L = (int16_t)((float)base - steer_out);
+    R = (int16_t)((float)base + steer_out);
+
+    // 限幅
+    int16_t wheel_max = g_speed_fast + (int16_t)STEER_MAX;
+    if (L < g_speed_min) L = g_speed_min;
+    if (L > wheel_max)   L = wheel_max;
+    if (R < g_speed_min) R = g_speed_min;
+    if (R > wheel_max)   R = wheel_max;
+
+    // ============================================================
+    // 状态显示 (OLED第2行)
+    // ============================================================
+    switch (branch)
+    {
+        case 0: strcpy(g_track_state, "GO  "); break;
+        case 1: strcpy(g_track_state, "R1  "); break;
+        case 2: strcpy(g_track_state, "R2  "); break;
+        case 3: strcpy(g_track_state, "R3!!"); break;
+        case 4: strcpy(g_track_state, "L1  "); break;
+        case 5: strcpy(g_track_state, "L2  "); break;
+        case 6: strcpy(g_track_state, "L3!!"); break;
+        case 7: strcpy(g_track_state, "FIND"); break;
+        case 8: strcpy(g_track_state, "CROSS");break;
+        default:strcpy(g_track_state, "----"); break;
     }
 
     motor_target_set(L, R);

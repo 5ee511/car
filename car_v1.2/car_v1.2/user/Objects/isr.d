@@ -25,3 +25,4 @@
 .\objects\isr.o: ..\code\pid.h
 .\objects\isr.o: ..\code\gray_track.h
 .\objects\isr.o: ..\code\filter.h
+.\objects\isr.o: ..\code\uart_tune.h

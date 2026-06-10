@@ -61,9 +61,10 @@ void USART3_IRQHandler(void)
 {
 if (USART3->SR&0x20)
 {
-// 此处填写中断处理
-
-USART3->SR &= ~0x20;   // 清除标志位
+#ifdef USE_UART_TUNE
+	uart_tune_rx_isr((uint8_t)(USART3->DR & 0xFF));
+#endif
+USART3->SR &= ~0x20;
 }
 }
 
@@ -154,12 +155,12 @@ if(EXTI->PR&(1<<5))   //EXTI5  PA5/PB5/PC5
 EXTI->PR = 1<<5; // 清除标志位
 }
 
-if(EXTI->PR&(1<<6))   //EXTI6  PA6/PB6/PC6
+if(EXTI->PR&(1<<6))   //EXTI6  PA6 — 编码器1 A相
 {
-if(gpio_get(GPIO_A, Pin_2))
-Encoder_count1 --;
+if(gpio_get(GPIO_A, Pin_2))  // B相判方向
+Encoder_count1 ++;  // 与实际电机接线匹配
 else
-Encoder_count1 ++;
+Encoder_count1 --;
 // 此处填写中断处理
 
 EXTI->PR = 1<<6; // 清除标志位

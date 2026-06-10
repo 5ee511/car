@@ -25,3 +25,4 @@
 .\objects\grayscale_sensor.o: ..\code\pid.h
 .\objects\grayscale_sensor.o: ..\code\gray_track.h
 .\objects\grayscale_sensor.o: ..\code\filter.h
+.\objects\grayscale_sensor.o: ..\code\uart_tune.h
