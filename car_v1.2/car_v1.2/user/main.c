@@ -12,9 +12,8 @@ int main(void)
 	uart_init(UART_1, 115200, 0);
 	printf("Car v1.2 Ready\r\n");                  // 启动确认
 
-	// ==== UART3 裸机测试 ====
-	uart_init(UART_3, 115200, 1);
-	uart_sendstr(UART_3, "=== UART3 TEST ===\r\n");
+	// ==== UART3 PID 实时调参 ====
+	uart_tune_init(115200);
 
 	pid_init(&motorA, DELTA_PID, 200, 88, 15);   // ★ 电机A: P=200 I=88 D=15
 	pid_init(&motorB, DELTA_PID, 200, 88, 15);   // ★ 电机B: P=200 I=88 D=15

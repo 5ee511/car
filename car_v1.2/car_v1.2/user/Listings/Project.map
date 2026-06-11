@@ -9,7 +9,7 @@ Section Cross References
     main.o(i.main) refers to motor.o(i.encoder_init) for encoder_init
     main.o(i.main) refers to ml_uart.o(i.uart_init) for uart_init
     main.o(i.main) refers to printfa.o(i.__0printf) for __2printf
-    main.o(i.main) refers to ml_uart.o(i.uart_sendstr) for uart_sendstr
+    main.o(i.main) refers to uart_tune.o(i.uart_tune_init) for uart_tune_init
     main.o(i.main) refers to pid.o(i.pid_init) for pid_init
     main.o(i.main) refers to ml_i2c.o(i.I2C_Init) for I2C_Init
     main.o(i.main) refers to ml_exti.o(i.exti_init) for exti_init
@@ -83,14 +83,15 @@ Section Cross References
     gray_track.o(i.sensor_test) refers to gray_track.o(i.digtal) for digtal
     gray_track.o(i.sensor_test) refers to gray_track.o(.bss) for g_sensor_data
     gray_track.o(i.track) refers to gray_track.o(i.digtal) for digtal
+    gray_track.o(i.track) refers to ffltui.o(.text) for __aeabi_ui2f
+    gray_track.o(i.track) refers to fflti.o(.text) for __aeabi_i2f
+    gray_track.o(i.track) refers to fdiv.o(.text) for __aeabi_fdiv
+    gray_track.o(i.track) refers to cfrcmple.o(.text) for __aeabi_cfrcmple
+    gray_track.o(i.track) refers to cfcmple.o(.text) for __aeabi_cfcmple
     gray_track.o(i.track) refers to strcpy.o(.text) for strcpy
     gray_track.o(i.track) refers to pid.o(i.motor_target_set) for motor_target_set
     gray_track.o(i.track) refers to fadd.o(.text) for __aeabi_fsub
     gray_track.o(i.track) refers to fmul.o(.text) for __aeabi_fmul
-    gray_track.o(i.track) refers to cfrcmple.o(.text) for __aeabi_cfrcmple
-    gray_track.o(i.track) refers to cfcmple.o(.text) for __aeabi_cfcmple
-    gray_track.o(i.track) refers to fdiv.o(.text) for __aeabi_fdiv
-    gray_track.o(i.track) refers to fflti.o(.text) for __aeabi_i2f
     gray_track.o(i.track) refers to ffixi.o(.text) for __aeabi_f2iz
     gray_track.o(i.track) refers to gray_track.o(.data) for ever_seen_line
     gray_track.o(.data) refers to gray_track.o(.conststring) for .conststring
@@ -121,7 +122,11 @@ Section Cross References
     uart_tune.o(i.tune_parse_float) refers to fflti.o(.text) for __aeabi_i2f
     uart_tune.o(i.tune_parse_float) refers to fmul.o(.text) for __aeabi_fmul
     uart_tune.o(i.tune_parse_float) refers to fadd.o(.text) for __aeabi_fadd
+    uart_tune.o(i.tune_print_help) refers to f2d.o(.text) for __aeabi_f2d
+    uart_tune.o(i.tune_print_help) refers to printfa.o(i.__0sprintf) for __2sprintf
     uart_tune.o(i.tune_print_help) refers to ml_uart.o(i.uart_sendstr) for uart_sendstr
+    uart_tune.o(i.tune_print_help) refers to gray_track.o(.data) for g_track_kd
+    uart_tune.o(i.tune_print_help) refers to pid.o(.bss) for motorA
     uart_tune.o(i.tune_print_help) refers to uart_tune.o(.conststring) for .conststring
     uart_tune.o(i.tune_print_status) refers to f2d.o(.text) for __aeabi_f2d
     uart_tune.o(i.tune_print_status) refers to printfa.o(i.__0sprintf) for __2sprintf
@@ -132,7 +137,6 @@ Section Cross References
     uart_tune.o(i.tune_print_status) refers to gray_track.o(.data) for g_track_kd
     uart_tune.o(i.uart_tune_init) refers to ml_uart.o(i.uart_init) for uart_init
     uart_tune.o(i.uart_tune_init) refers to ml_uart.o(i.uart_sendstr) for uart_sendstr
-    uart_tune.o(i.uart_tune_init) refers to uart_tune.o(.conststring) for .conststring
     uart_tune.o(i.uart_tune_process) refers to uart_tune.o(i.tune_print_status) for tune_print_status
     uart_tune.o(i.uart_tune_process) refers to uart_tune.o(i.tune_print_help) for tune_print_help
     uart_tune.o(i.uart_tune_process) refers to uart_tune.o(i.tune_parse_float) for tune_parse_float
@@ -689,7 +693,6 @@ Removing Unused input sections from the image.
     Removing gray_track.o(i.sensor_test), (136 bytes).
     Removing filter.o(i.Mahony_Filter), (84 bytes).
     Removing grayscale_sensor.o(i.Grayscale_Sensor_Read_Single), (30 bytes).
-    Removing uart_tune.o(i.uart_tune_init), (64 bytes).
     Removing system_stm32f10x.o(i.SystemCoreClockUpdate), (164 bytes).
     Removing system_stm32f10x.o(.data), (20 bytes).
     Removing startup_stm32f10x_md.o(HEAP), (512 bytes).
@@ -714,7 +717,7 @@ Removing Unused input sections from the image.
     Removing dsqrt.o(.text), (162 bytes).
     Removing cdcmple.o(.text), (48 bytes).
 
-27 unused section(s) (total 2766 bytes) removed from the image.
+26 unused section(s) (total 2702 bytes) removed from the image.
 
 ==============================================================================
 
@@ -728,66 +731,66 @@ Image Symbol Table
     ../clib/microlib/division.c              0x00000000   Number         0  uidiv.o ABSOLUTE
     ../clib/microlib/division.c              0x00000000   Number         0  uldiv.o ABSOLUTE
     ../clib/microlib/errno.c                 0x00000000   Number         0  errno.o ABSOLUTE
-    ../clib/microlib/init/entry.s            0x00000000   Number         0  entry5.o ABSOLUTE
-    ../clib/microlib/init/entry.s            0x00000000   Number         0  entry2.o ABSOLUTE
-    ../clib/microlib/init/entry.s            0x00000000   Number         0  entry11b.o ABSOLUTE
+    ../clib/microlib/init/entry.s            0x00000000   Number         0  entry10a.o ABSOLUTE
+    ../clib/microlib/init/entry.s            0x00000000   Number         0  entry9b.o ABSOLUTE
+    ../clib/microlib/init/entry.s            0x00000000   Number         0  entry8b.o ABSOLUTE
+    ../clib/microlib/init/entry.s            0x00000000   Number         0  entry8a.o ABSOLUTE
+    ../clib/microlib/init/entry.s            0x00000000   Number         0  entry9a.o ABSOLUTE
+    ../clib/microlib/init/entry.s            0x00000000   Number         0  entry7b.o ABSOLUTE
     ../clib/microlib/init/entry.s            0x00000000   Number         0  entry7a.o ABSOLUTE
     ../clib/microlib/init/entry.s            0x00000000   Number         0  entry.o ABSOLUTE
-    ../clib/microlib/init/entry.s            0x00000000   Number         0  entry7b.o ABSOLUTE
-    ../clib/microlib/init/entry.s            0x00000000   Number         0  entry8a.o ABSOLUTE
-    ../clib/microlib/init/entry.s            0x00000000   Number         0  entry8b.o ABSOLUTE
-    ../clib/microlib/init/entry.s            0x00000000   Number         0  entry9a.o ABSOLUTE
-    ../clib/microlib/init/entry.s            0x00000000   Number         0  entry9b.o ABSOLUTE
-    ../clib/microlib/init/entry.s            0x00000000   Number         0  entry10a.o ABSOLUTE
-    ../clib/microlib/init/entry.s            0x00000000   Number         0  entry10b.o ABSOLUTE
     ../clib/microlib/init/entry.s            0x00000000   Number         0  entry11a.o ABSOLUTE
+    ../clib/microlib/init/entry.s            0x00000000   Number         0  entry10b.o ABSOLUTE
+    ../clib/microlib/init/entry.s            0x00000000   Number         0  entry11b.o ABSOLUTE
+    ../clib/microlib/init/entry.s            0x00000000   Number         0  entry2.o ABSOLUTE
+    ../clib/microlib/init/entry.s            0x00000000   Number         0  entry5.o ABSOLUTE
     ../clib/microlib/longlong.c              0x00000000   Number         0  llsshr.o ABSOLUTE
-    ../clib/microlib/longlong.c              0x00000000   Number         0  llushr.o ABSOLUTE
     ../clib/microlib/longlong.c              0x00000000   Number         0  llshl.o ABSOLUTE
-    ../clib/microlib/printf/printf.c         0x00000000   Number         0  printf2.o ABSOLUTE
-    ../clib/microlib/printf/printf.c         0x00000000   Number         0  printf4.o ABSOLUTE
-    ../clib/microlib/printf/printf.c         0x00000000   Number         0  printf3.o ABSOLUTE
-    ../clib/microlib/printf/printf.c         0x00000000   Number         0  printf1.o ABSOLUTE
+    ../clib/microlib/longlong.c              0x00000000   Number         0  llushr.o ABSOLUTE
     ../clib/microlib/printf/printf.c         0x00000000   Number         0  printf0.o ABSOLUTE
+    ../clib/microlib/printf/printf.c         0x00000000   Number         0  printf1.o ABSOLUTE
+    ../clib/microlib/printf/printf.c         0x00000000   Number         0  printf4.o ABSOLUTE
+    ../clib/microlib/printf/printf.c         0x00000000   Number         0  printf6.o ABSOLUTE
+    ../clib/microlib/printf/printf.c         0x00000000   Number         0  printf7.o ABSOLUTE
     ../clib/microlib/printf/printf.c         0x00000000   Number         0  printfb.o ABSOLUTE
     ../clib/microlib/printf/printf.c         0x00000000   Number         0  printf5.o ABSOLUTE
-    ../clib/microlib/printf/printf.c         0x00000000   Number         0  printf6.o ABSOLUTE
-    ../clib/microlib/printf/printf.c         0x00000000   Number         0  printfa.o ABSOLUTE
     ../clib/microlib/printf/printf.c         0x00000000   Number         0  printf8.o ABSOLUTE
-    ../clib/microlib/printf/printf.c         0x00000000   Number         0  printf7.o ABSOLUTE
+    ../clib/microlib/printf/printf.c         0x00000000   Number         0  printf3.o ABSOLUTE
+    ../clib/microlib/printf/printf.c         0x00000000   Number         0  printfa.o ABSOLUTE
+    ../clib/microlib/printf/printf.c         0x00000000   Number         0  printf2.o ABSOLUTE
     ../clib/microlib/printf/stubs.s          0x00000000   Number         0  stubs.o ABSOLUTE
     ../clib/microlib/string/strcpy.c         0x00000000   Number         0  strcpy.o ABSOLUTE
-    ../clib/microlib/stubs.s                 0x00000000   Number         0  iusefp.o ABSOLUTE
     ../clib/microlib/stubs.s                 0x00000000   Number         0  useno.o ABSOLUTE
+    ../clib/microlib/stubs.s                 0x00000000   Number         0  iusefp.o ABSOLUTE
     ../fplib/microlib/d2f.c                  0x00000000   Number         0  d2f.o ABSOLUTE
     ../fplib/microlib/f2d.c                  0x00000000   Number         0  f2d.o ABSOLUTE
     ../fplib/microlib/fpadd.c                0x00000000   Number         0  dadd.o ABSOLUTE
     ../fplib/microlib/fpadd.c                0x00000000   Number         0  fadd.o ABSOLUTE
-    ../fplib/microlib/fpdiv.c                0x00000000   Number         0  ddiv.o ABSOLUTE
     ../fplib/microlib/fpdiv.c                0x00000000   Number         0  fdiv.o ABSOLUTE
+    ../fplib/microlib/fpdiv.c                0x00000000   Number         0  ddiv.o ABSOLUTE
     ../fplib/microlib/fpepilogue.c           0x00000000   Number         0  fepilogue.o ABSOLUTE
     ../fplib/microlib/fpepilogue.c           0x00000000   Number         0  depilogue.o ABSOLUTE
-    ../fplib/microlib/fpfix.c                0x00000000   Number         0  ffixi.o ABSOLUTE
-    ../fplib/microlib/fpfix.c                0x00000000   Number         0  ffixui.o ABSOLUTE
     ../fplib/microlib/fpfix.c                0x00000000   Number         0  dfixi.o ABSOLUTE
+    ../fplib/microlib/fpfix.c                0x00000000   Number         0  ffixui.o ABSOLUTE
+    ../fplib/microlib/fpfix.c                0x00000000   Number         0  ffixi.o ABSOLUTE
     ../fplib/microlib/fpfix.c                0x00000000   Number         0  dfixul.o ABSOLUTE
     ../fplib/microlib/fpflt.c                0x00000000   Number         0  dfltui.o ABSOLUTE
     ../fplib/microlib/fpflt.c                0x00000000   Number         0  dflti.o ABSOLUTE
-    ../fplib/microlib/fpflt.c                0x00000000   Number         0  fflti.o ABSOLUTE
     ../fplib/microlib/fpflt.c                0x00000000   Number         0  ffltui.o ABSOLUTE
+    ../fplib/microlib/fpflt.c                0x00000000   Number         0  fflti.o ABSOLUTE
     ../fplib/microlib/fpmul.c                0x00000000   Number         0  dmul.o ABSOLUTE
     ../fplib/microlib/fpmul.c                0x00000000   Number         0  fmul.o ABSOLUTE
     ../fplib/microlib/fpscalb.c              0x00000000   Number         0  dscalb.o ABSOLUTE
     ../fplib/microlib/fpsqrt.c               0x00000000   Number         0  dsqrt.o ABSOLUTE
-    ../mathlib/atan.c                        0x00000000   Number         0  atan.o ABSOLUTE
     ../mathlib/atan.c                        0x00000000   Number         0  atan_x.o ABSOLUTE
-    ../mathlib/atan2.c                       0x00000000   Number         0  atan2_x.o ABSOLUTE
+    ../mathlib/atan.c                        0x00000000   Number         0  atan.o ABSOLUTE
     ../mathlib/atan2.c                       0x00000000   Number         0  atan2.o ABSOLUTE
+    ../mathlib/atan2.c                       0x00000000   Number         0  atan2_x.o ABSOLUTE
     ../mathlib/dunder.c                      0x00000000   Number         0  dunder.o ABSOLUTE
     ../mathlib/fpclassify.c                  0x00000000   Number         0  fpclassify.o ABSOLUTE
     ../mathlib/poly.c                        0x00000000   Number         0  poly.o ABSOLUTE
-    ../mathlib/pow.c                         0x00000000   Number         0  pow.o ABSOLUTE
     ../mathlib/pow.c                         0x00000000   Number         0  pow_x.o ABSOLUTE
+    ../mathlib/pow.c                         0x00000000   Number         0  pow.o ABSOLUTE
     ../mathlib/qnan.c                        0x00000000   Number         0  qnan.o ABSOLUTE
     ../mathlib/sqrt.c                        0x00000000   Number         0  sqrt.o ABSOLUTE
     ../mathlib/sqrt.c                        0x00000000   Number         0  sqrt_x.o ABSOLUTE
@@ -947,43 +950,44 @@ Image Symbol Table
     i.gpio_init                              0x08002a08   Section        0  ml_gpio.o(i.gpio_init)
     i.gpio_set                               0x08002bac   Section        0  ml_gpio.o(i.gpio_set)
     i.main                                   0x08002bec   Section        0  main.o(i.main)
-    i.motorA_duty                            0x08002e84   Section        0  motor.o(i.motorA_duty)
-    i.motorB_duty                            0x08002ebc   Section        0  motor.o(i.motorB_duty)
-    i.motor_init                             0x08002ef4   Section        0  motor.o(i.motor_init)
-    i.motor_target_set                       0x08002f38   Section        0  pid.o(i.motor_target_set)
-    i.pid_cal                                0x08002f9c   Section        0  pid.o(i.pid_cal)
-    i.pid_control                            0x08003060   Section        0  pid.o(i.pid_control)
-    i.pid_init                               0x08003104   Section        0  pid.o(i.pid_init)
-    i.pidout_limit                           0x08003114   Section        0  pid.o(i.pidout_limit)
-    i.pwm_init                               0x0800313c   Section        0  ml_pwm.o(i.pwm_init)
-    i.pwm_pin_init                           0x080032ac   Section        0  ml_pwm.o(i.pwm_pin_init)
-    i.pwm_update                             0x08003358   Section        0  ml_pwm.o(i.pwm_update)
-    i.tim_interrupt_ms_init                  0x0800346c   Section        0  ml_tim.o(i.tim_interrupt_ms_init)
-    i.track                                  0x080034dc   Section        0  gray_track.o(i.track)
-    i.tune_apply_speed_scale                 0x08003860   Section        0  uart_tune.o(i.tune_apply_speed_scale)
-    tune_apply_speed_scale                   0x08003861   Thumb Code   172  uart_tune.o(i.tune_apply_speed_scale)
-    i.tune_parse_float                       0x08003930   Section        0  uart_tune.o(i.tune_parse_float)
-    tune_parse_float                         0x08003931   Thumb Code   178  uart_tune.o(i.tune_parse_float)
-    i.tune_print_help                        0x080039ec   Section        0  uart_tune.o(i.tune_print_help)
-    tune_print_help                          0x080039ed   Thumb Code    12  uart_tune.o(i.tune_print_help)
-    i.tune_print_status                      0x080039fc   Section        0  uart_tune.o(i.tune_print_status)
-    tune_print_status                        0x080039fd   Thumb Code   244  uart_tune.o(i.tune_print_status)
-    i.uart_baud_config                       0x08003b18   Section        0  ml_uart.o(i.uart_baud_config)
-    i.uart_init                              0x08003bb8   Section        0  ml_uart.o(i.uart_init)
-    i.uart_pin_init                          0x08003c1c   Section        0  ml_uart.o(i.uart_pin_init)
-    i.uart_sendbyte                          0x08003c74   Section        0  ml_uart.o(i.uart_sendbyte)
-    i.uart_sendstr                           0x08003c94   Section        0  ml_uart.o(i.uart_sendstr)
-    i.uart_tune_process                      0x08003cb0   Section        0  uart_tune.o(i.uart_tune_process)
-    i.uart_tune_rx_isr                       0x08003f18   Section        0  uart_tune.o(i.uart_tune_rx_isr)
-    .constdata                               0x08003f50   Section     1520  ml_oled.o(.constdata)
-    .constdata                               0x08004540   Section      152  atan.o(.constdata)
-    atanhi                                   0x08004540   Data          32  atan.o(.constdata)
-    atanlo                                   0x08004560   Data          32  atan.o(.constdata)
-    aTodd                                    0x08004580   Data          40  atan.o(.constdata)
-    aTeven                                   0x080045a8   Data          48  atan.o(.constdata)
-    .constdata                               0x080045d8   Section        8  qnan.o(.constdata)
-    .conststring                             0x080045e0   Section       31  gray_track.o(.conststring)
-    .conststring                             0x08004600   Section      448  uart_tune.o(.conststring)
+    i.motorA_duty                            0x08002e60   Section        0  motor.o(i.motorA_duty)
+    i.motorB_duty                            0x08002e98   Section        0  motor.o(i.motorB_duty)
+    i.motor_init                             0x08002ed0   Section        0  motor.o(i.motor_init)
+    i.motor_target_set                       0x08002f14   Section        0  pid.o(i.motor_target_set)
+    i.pid_cal                                0x08002f78   Section        0  pid.o(i.pid_cal)
+    i.pid_control                            0x0800303c   Section        0  pid.o(i.pid_control)
+    i.pid_init                               0x080030e0   Section        0  pid.o(i.pid_init)
+    i.pidout_limit                           0x080030f0   Section        0  pid.o(i.pidout_limit)
+    i.pwm_init                               0x08003118   Section        0  ml_pwm.o(i.pwm_init)
+    i.pwm_pin_init                           0x08003288   Section        0  ml_pwm.o(i.pwm_pin_init)
+    i.pwm_update                             0x08003334   Section        0  ml_pwm.o(i.pwm_update)
+    i.tim_interrupt_ms_init                  0x08003448   Section        0  ml_tim.o(i.tim_interrupt_ms_init)
+    i.track                                  0x080034b8   Section        0  gray_track.o(i.track)
+    i.tune_apply_speed_scale                 0x08003850   Section        0  uart_tune.o(i.tune_apply_speed_scale)
+    tune_apply_speed_scale                   0x08003851   Thumb Code   172  uart_tune.o(i.tune_apply_speed_scale)
+    i.tune_parse_float                       0x08003920   Section        0  uart_tune.o(i.tune_parse_float)
+    tune_parse_float                         0x08003921   Thumb Code   178  uart_tune.o(i.tune_parse_float)
+    i.tune_print_help                        0x080039dc   Section        0  uart_tune.o(i.tune_print_help)
+    tune_print_help                          0x080039dd   Thumb Code   132  uart_tune.o(i.tune_print_help)
+    i.tune_print_status                      0x08003a7c   Section        0  uart_tune.o(i.tune_print_status)
+    tune_print_status                        0x08003a7d   Thumb Code   244  uart_tune.o(i.tune_print_status)
+    i.uart_baud_config                       0x08003b98   Section        0  ml_uart.o(i.uart_baud_config)
+    i.uart_init                              0x08003c38   Section        0  ml_uart.o(i.uart_init)
+    i.uart_pin_init                          0x08003c9c   Section        0  ml_uart.o(i.uart_pin_init)
+    i.uart_sendbyte                          0x08003cf4   Section        0  ml_uart.o(i.uart_sendbyte)
+    i.uart_sendstr                           0x08003d14   Section        0  ml_uart.o(i.uart_sendstr)
+    i.uart_tune_init                         0x08003d30   Section        0  uart_tune.o(i.uart_tune_init)
+    i.uart_tune_process                      0x08003d98   Section        0  uart_tune.o(i.uart_tune_process)
+    i.uart_tune_rx_isr                       0x08004000   Section        0  uart_tune.o(i.uart_tune_rx_isr)
+    .constdata                               0x08004038   Section     1520  ml_oled.o(.constdata)
+    .constdata                               0x08004628   Section      152  atan.o(.constdata)
+    atanhi                                   0x08004628   Data          32  atan.o(.constdata)
+    atanlo                                   0x08004648   Data          32  atan.o(.constdata)
+    aTodd                                    0x08004668   Data          40  atan.o(.constdata)
+    aTeven                                   0x08004690   Data          48  atan.o(.constdata)
+    .constdata                               0x080046c0   Section        8  qnan.o(.constdata)
+    .conststring                             0x080046c8   Section       31  gray_track.o(.conststring)
+    .conststring                             0x080046e8   Section      560  uart_tune.o(.conststring)
     .data                                    0x20000000   Section        4  isr.o(.data)
     .data                                    0x20000004   Section       16  motor.o(.data)
     .data                                    0x20000014   Section       64  gray_track.o(.data)
@@ -1235,31 +1239,32 @@ Image Symbol Table
     gpio_get                                 0x080029e5   Thumb Code    30  ml_gpio.o(i.gpio_get)
     gpio_init                                0x08002a09   Thumb Code   412  ml_gpio.o(i.gpio_init)
     gpio_set                                 0x08002bad   Thumb Code    60  ml_gpio.o(i.gpio_set)
-    main                                     0x08002bed   Thumb Code   562  main.o(i.main)
-    motorA_duty                              0x08002e85   Thumb Code    50  motor.o(i.motorA_duty)
-    motorB_duty                              0x08002ebd   Thumb Code    50  motor.o(i.motorB_duty)
-    motor_init                               0x08002ef5   Thumb Code    68  motor.o(i.motor_init)
-    motor_target_set                         0x08002f39   Thumb Code    84  pid.o(i.motor_target_set)
-    pid_cal                                  0x08002f9d   Thumb Code   194  pid.o(i.pid_cal)
-    pid_control                              0x08003061   Thumb Code   138  pid.o(i.pid_control)
-    pid_init                                 0x08003105   Thumb Code    14  pid.o(i.pid_init)
-    pidout_limit                             0x08003115   Thumb Code    34  pid.o(i.pidout_limit)
-    pwm_init                                 0x0800313d   Thumb Code   354  ml_pwm.o(i.pwm_init)
-    pwm_pin_init                             0x080032ad   Thumb Code   172  ml_pwm.o(i.pwm_pin_init)
-    pwm_update                               0x08003359   Thumb Code   266  ml_pwm.o(i.pwm_update)
-    tim_interrupt_ms_init                    0x0800346d   Thumb Code   104  ml_tim.o(i.tim_interrupt_ms_init)
-    track                                    0x080034dd   Thumb Code   754  gray_track.o(i.track)
-    uart_baud_config                         0x08003b19   Thumb Code   142  ml_uart.o(i.uart_baud_config)
-    uart_init                                0x08003bb9   Thumb Code    92  ml_uart.o(i.uart_init)
-    uart_pin_init                            0x08003c1d   Thumb Code    86  ml_uart.o(i.uart_pin_init)
-    uart_sendbyte                            0x08003c75   Thumb Code    28  ml_uart.o(i.uart_sendbyte)
-    uart_sendstr                             0x08003c95   Thumb Code    26  ml_uart.o(i.uart_sendstr)
-    uart_tune_process                        0x08003cb1   Thumb Code   556  uart_tune.o(i.uart_tune_process)
-    uart_tune_rx_isr                         0x08003f19   Thumb Code    44  uart_tune.o(i.uart_tune_rx_isr)
-    OLED_F8x16                               0x08003f50   Data        1520  ml_oled.o(.constdata)
-    __mathlib_zero                           0x080045d8   Data           8  qnan.o(.constdata)
-    Region$$Table$$Base                      0x080047c0   Number         0  anon$$obj.o(Region$$Table)
-    Region$$Table$$Limit                     0x080047e0   Number         0  anon$$obj.o(Region$$Table)
+    main                                     0x08002bed   Thumb Code   550  main.o(i.main)
+    motorA_duty                              0x08002e61   Thumb Code    50  motor.o(i.motorA_duty)
+    motorB_duty                              0x08002e99   Thumb Code    50  motor.o(i.motorB_duty)
+    motor_init                               0x08002ed1   Thumb Code    68  motor.o(i.motor_init)
+    motor_target_set                         0x08002f15   Thumb Code    84  pid.o(i.motor_target_set)
+    pid_cal                                  0x08002f79   Thumb Code   194  pid.o(i.pid_cal)
+    pid_control                              0x0800303d   Thumb Code   138  pid.o(i.pid_control)
+    pid_init                                 0x080030e1   Thumb Code    14  pid.o(i.pid_init)
+    pidout_limit                             0x080030f1   Thumb Code    34  pid.o(i.pidout_limit)
+    pwm_init                                 0x08003119   Thumb Code   354  ml_pwm.o(i.pwm_init)
+    pwm_pin_init                             0x08003289   Thumb Code   172  ml_pwm.o(i.pwm_pin_init)
+    pwm_update                               0x08003335   Thumb Code   266  ml_pwm.o(i.pwm_update)
+    tim_interrupt_ms_init                    0x08003449   Thumb Code   104  ml_tim.o(i.tim_interrupt_ms_init)
+    track                                    0x080034b9   Thumb Code   790  gray_track.o(i.track)
+    uart_baud_config                         0x08003b99   Thumb Code   142  ml_uart.o(i.uart_baud_config)
+    uart_init                                0x08003c39   Thumb Code    92  ml_uart.o(i.uart_init)
+    uart_pin_init                            0x08003c9d   Thumb Code    86  ml_uart.o(i.uart_pin_init)
+    uart_sendbyte                            0x08003cf5   Thumb Code    28  ml_uart.o(i.uart_sendbyte)
+    uart_sendstr                             0x08003d15   Thumb Code    26  ml_uart.o(i.uart_sendstr)
+    uart_tune_init                           0x08003d31   Thumb Code    32  uart_tune.o(i.uart_tune_init)
+    uart_tune_process                        0x08003d99   Thumb Code   556  uart_tune.o(i.uart_tune_process)
+    uart_tune_rx_isr                         0x08004001   Thumb Code    44  uart_tune.o(i.uart_tune_rx_isr)
+    OLED_F8x16                               0x08004038   Data        1520  ml_oled.o(.constdata)
+    __mathlib_zero                           0x080046c0   Data           8  qnan.o(.constdata)
+    Region$$Table$$Base                      0x08004918   Number         0  anon$$obj.o(Region$$Table)
+    Region$$Table$$Limit                     0x08004938   Number         0  anon$$obj.o(Region$$Table)
     g_tim3_tick                              0x20000000   Data           4  isr.o(.data)
     motorA_dir                               0x20000004   Data           1  motor.o(.data)
     motorB_dir                               0x20000005   Data           1  motor.o(.data)
@@ -1313,9 +1318,9 @@ Memory Map of the image
 
   Image Entry point : 0x080000ed
 
-  Load Region LR_IROM1 (Base: 0x08000000, Size: 0x0000492c, Max: 0x00010000, ABSOLUTE, COMPRESSED[0x00004848])
+  Load Region LR_IROM1 (Base: 0x08000000, Size: 0x00004a84, Max: 0x00010000, ABSOLUTE, COMPRESSED[0x000049a0])
 
-    Execution Region ER_IROM1 (Exec base: 0x08000000, Load base: 0x08000000, Size: 0x000047e0, Max: 0x00010000, ABSOLUTE)
+    Execution Region ER_IROM1 (Exec base: 0x08000000, Load base: 0x08000000, Size: 0x00004938, Max: 0x00010000, ABSOLUTE)
 
     Exec Addr    Load Addr    Size         Type   Attr      Idx    E Section Name        Object
 
@@ -1443,45 +1448,46 @@ Memory Map of the image
     0x080029e4   0x080029e4   0x00000024   Code   RO          455    i.gpio_get          ml_gpio.o
     0x08002a08   0x08002a08   0x000001a4   Code   RO          456    i.gpio_init         ml_gpio.o
     0x08002bac   0x08002bac   0x00000040   Code   RO          457    i.gpio_set          ml_gpio.o
-    0x08002bec   0x08002bec   0x00000298   Code   RO            1    i.main              main.o
-    0x08002e84   0x08002e84   0x00000038   Code   RO          187    i.motorA_duty       motor.o
-    0x08002ebc   0x08002ebc   0x00000038   Code   RO          188    i.motorB_duty       motor.o
-    0x08002ef4   0x08002ef4   0x00000044   Code   RO          189    i.motor_init        motor.o
-    0x08002f38   0x08002f38   0x00000064   Code   RO          223    i.motor_target_set  pid.o
-    0x08002f9c   0x08002f9c   0x000000c2   Code   RO          224    i.pid_cal           pid.o
-    0x0800305e   0x0800305e   0x00000002   PAD
-    0x08003060   0x08003060   0x000000a4   Code   RO          225    i.pid_control       pid.o
-    0x08003104   0x08003104   0x0000000e   Code   RO          226    i.pid_init          pid.o
-    0x08003112   0x08003112   0x00000002   PAD
-    0x08003114   0x08003114   0x00000028   Code   RO          227    i.pidout_limit      pid.o
-    0x0800313c   0x0800313c   0x00000170   Code   RO          566    i.pwm_init          ml_pwm.o
-    0x080032ac   0x080032ac   0x000000ac   Code   RO          567    i.pwm_pin_init      ml_pwm.o
-    0x08003358   0x08003358   0x00000114   Code   RO          568    i.pwm_update        ml_pwm.o
-    0x0800346c   0x0800346c   0x00000070   Code   RO          590    i.tim_interrupt_ms_init  ml_tim.o
-    0x080034dc   0x080034dc   0x00000384   Code   RO          272    i.track             gray_track.o
-    0x08003860   0x08003860   0x000000d0   Code   RO          365    i.tune_apply_speed_scale  uart_tune.o
-    0x08003930   0x08003930   0x000000bc   Code   RO          366    i.tune_parse_float  uart_tune.o
-    0x080039ec   0x080039ec   0x00000010   Code   RO          367    i.tune_print_help   uart_tune.o
-    0x080039fc   0x080039fc   0x0000011c   Code   RO          368    i.tune_print_status  uart_tune.o
-    0x08003b18   0x08003b18   0x000000a0   Code   RO          610    i.uart_baud_config  ml_uart.o
-    0x08003bb8   0x08003bb8   0x00000064   Code   RO          612    i.uart_init         ml_uart.o
-    0x08003c1c   0x08003c1c   0x00000056   Code   RO          613    i.uart_pin_init     ml_uart.o
-    0x08003c72   0x08003c72   0x00000002   PAD
-    0x08003c74   0x08003c74   0x00000020   Code   RO          614    i.uart_sendbyte     ml_uart.o
-    0x08003c94   0x08003c94   0x0000001a   Code   RO          615    i.uart_sendstr      ml_uart.o
-    0x08003cae   0x08003cae   0x00000002   PAD
-    0x08003cb0   0x08003cb0   0x00000268   Code   RO          370    i.uart_tune_process  uart_tune.o
-    0x08003f18   0x08003f18   0x00000038   Code   RO          371    i.uart_tune_rx_isr  uart_tune.o
-    0x08003f50   0x08003f50   0x000005f0   Data   RO          821    .constdata          ml_oled.o
-    0x08004540   0x08004540   0x00000098   Data   RO          956    .constdata          m_ws.l(atan.o)
-    0x080045d8   0x080045d8   0x00000008   Data   RO         1300    .constdata          m_ws.l(qnan.o)
-    0x080045e0   0x080045e0   0x0000001f   Data   RO          274    .conststring        gray_track.o
-    0x080045ff   0x080045ff   0x00000001   PAD
-    0x08004600   0x08004600   0x000001c0   Data   RO          373    .conststring        uart_tune.o
-    0x080047c0   0x080047c0   0x00000020   Data   RO         1357    Region$$Table       anon$$obj.o
+    0x08002bec   0x08002bec   0x00000274   Code   RO            1    i.main              main.o
+    0x08002e60   0x08002e60   0x00000038   Code   RO          187    i.motorA_duty       motor.o
+    0x08002e98   0x08002e98   0x00000038   Code   RO          188    i.motorB_duty       motor.o
+    0x08002ed0   0x08002ed0   0x00000044   Code   RO          189    i.motor_init        motor.o
+    0x08002f14   0x08002f14   0x00000064   Code   RO          223    i.motor_target_set  pid.o
+    0x08002f78   0x08002f78   0x000000c2   Code   RO          224    i.pid_cal           pid.o
+    0x0800303a   0x0800303a   0x00000002   PAD
+    0x0800303c   0x0800303c   0x000000a4   Code   RO          225    i.pid_control       pid.o
+    0x080030e0   0x080030e0   0x0000000e   Code   RO          226    i.pid_init          pid.o
+    0x080030ee   0x080030ee   0x00000002   PAD
+    0x080030f0   0x080030f0   0x00000028   Code   RO          227    i.pidout_limit      pid.o
+    0x08003118   0x08003118   0x00000170   Code   RO          566    i.pwm_init          ml_pwm.o
+    0x08003288   0x08003288   0x000000ac   Code   RO          567    i.pwm_pin_init      ml_pwm.o
+    0x08003334   0x08003334   0x00000114   Code   RO          568    i.pwm_update        ml_pwm.o
+    0x08003448   0x08003448   0x00000070   Code   RO          590    i.tim_interrupt_ms_init  ml_tim.o
+    0x080034b8   0x080034b8   0x00000398   Code   RO          272    i.track             gray_track.o
+    0x08003850   0x08003850   0x000000d0   Code   RO          365    i.tune_apply_speed_scale  uart_tune.o
+    0x08003920   0x08003920   0x000000bc   Code   RO          366    i.tune_parse_float  uart_tune.o
+    0x080039dc   0x080039dc   0x000000a0   Code   RO          367    i.tune_print_help   uart_tune.o
+    0x08003a7c   0x08003a7c   0x0000011c   Code   RO          368    i.tune_print_status  uart_tune.o
+    0x08003b98   0x08003b98   0x000000a0   Code   RO          610    i.uart_baud_config  ml_uart.o
+    0x08003c38   0x08003c38   0x00000064   Code   RO          612    i.uart_init         ml_uart.o
+    0x08003c9c   0x08003c9c   0x00000056   Code   RO          613    i.uart_pin_init     ml_uart.o
+    0x08003cf2   0x08003cf2   0x00000002   PAD
+    0x08003cf4   0x08003cf4   0x00000020   Code   RO          614    i.uart_sendbyte     ml_uart.o
+    0x08003d14   0x08003d14   0x0000001a   Code   RO          615    i.uart_sendstr      ml_uart.o
+    0x08003d2e   0x08003d2e   0x00000002   PAD
+    0x08003d30   0x08003d30   0x00000068   Code   RO          369    i.uart_tune_init    uart_tune.o
+    0x08003d98   0x08003d98   0x00000268   Code   RO          370    i.uart_tune_process  uart_tune.o
+    0x08004000   0x08004000   0x00000038   Code   RO          371    i.uart_tune_rx_isr  uart_tune.o
+    0x08004038   0x08004038   0x000005f0   Data   RO          821    .constdata          ml_oled.o
+    0x08004628   0x08004628   0x00000098   Data   RO          956    .constdata          m_ws.l(atan.o)
+    0x080046c0   0x080046c0   0x00000008   Data   RO         1300    .constdata          m_ws.l(qnan.o)
+    0x080046c8   0x080046c8   0x0000001f   Data   RO          274    .conststring        gray_track.o
+    0x080046e7   0x080046e7   0x00000001   PAD
+    0x080046e8   0x080046e8   0x00000230   Data   RO          373    .conststring        uart_tune.o
+    0x08004918   0x08004918   0x00000020   Data   RO         1357    Region$$Table       anon$$obj.o
 
 
-    Execution Region RW_IRAM1 (Exec base: 0x20000000, Load base: 0x080047e0, Size: 0x00000658, Max: 0x00005000, ABSOLUTE, COMPRESSED[0x00000068])
+    Execution Region RW_IRAM1 (Exec base: 0x20000000, Load base: 0x08004938, Size: 0x00000658, Max: 0x00005000, ABSOLUTE, COMPRESSED[0x00000068])
 
     Exec Addr    Load Addr    Size         Type   Attr      Idx    E Section Name        Object
 
@@ -1510,10 +1516,10 @@ Image component sizes
       Code (inc. data)   RO Data    RW Data    ZI Data      Debug   Object Name
 
        320          0          0        144          0       1630   filter.o
-       928        162         31         64         16       3445   gray_track.o
+       948        146         31         64         16       3429   gray_track.o
        272         18          0          0          0       2616   grayscale_sensor.o
       1234        168          0          4          0       5280   isr.o
-       664        102          0          0          0     206739   main.o
+       628         78          0          0          0     206735   main.o
         70          0          0          0          0        918   ml_delay.o
        596         38          0          0          0       1408   ml_exti.o
        520         18          0         12          0       4659   ml_gpio.o
@@ -1529,10 +1535,10 @@ Image component sizes
        628         56          0          0        156       4017   pid.o
         36          8        236          0       1024        808   startup_stm32f10x_md.o
        328         28          0          0          0       1781   system_stm32f10x.o
-      1368        162        448          3         96       4803   uart_tune.o
+      1616        258        560          3         96       5376   uart_tune.o
 
     ----------------------------------------------------------------------
-     10126        896       2268        332       1292     263332   Object Totals
+     10358        952       2380        332       1292     263885   Object Totals
          0          0         32          0          0          0   (incl. Generated)
         16          0          1          1          0          0   (incl. Padding)
 
@@ -1609,15 +1615,15 @@ Image component sizes
 
       Code (inc. data)   RO Data    RW Data    ZI Data      Debug   
 
-     15972       1122       2428        332       1292     261052   Grand Totals
-     15972       1122       2428        104       1292     261052   ELF Image Totals (compressed)
-     15972       1122       2428        104          0          0   ROM Totals
+     16204       1178       2540        332       1292     261553   Grand Totals
+     16204       1178       2540        104       1292     261553   ELF Image Totals (compressed)
+     16204       1178       2540        104          0          0   ROM Totals
 
 ==============================================================================
 
-    Total RO  Size (Code + RO Data)                18400 (  17.97kB)
+    Total RO  Size (Code + RO Data)                18744 (  18.30kB)
     Total RW  Size (RW Data + ZI Data)              1624 (   1.59kB)
-    Total ROM Size (Code + RO Data + RW Data)      18504 (  18.07kB)
+    Total ROM Size (Code + RO Data + RW Data)      18848 (  18.41kB)
 
 ==============================================================================
 

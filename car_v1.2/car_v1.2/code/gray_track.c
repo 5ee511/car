@@ -56,12 +56,22 @@ void sensor_test(void) {
 //=====================================================================================
 //                     ★ 所有可调参数都在这里 ★
 //=====================================================================================
-#define TRACK_SPEED_FAST    25   // 直道/基准速度
-#define TRACK_SPEED_SLOW    14   // 丢线搜索速度 (FIND时用)
-#define TRACK_SPEED_MIN      2   // 内轮最低速 (调小=差速大, 调大=差速小)
-float g_track_kp = 18.0f;       // 转向P: 越大转弯越猛
-float g_track_kd = 6.0f;        // 转向D: 越大越稳
-#define STEER_MAX        18     // 转向输出上限 (最大差速 ≈ 这个值×2)
+#define TRACK_SPEED_FAST    45   // 直道/基准速度
+#define TRACK_SPEED_SLOW    25   // 丢线搜索速度 (FIND时用)
+#define TRACK_SPEED_MIN      4   // 内轮最低速 (调小=差速大, 调大=差速小)
+// 加权差比和 ── 传感器权重 (外层权重大, 线偏得越多贡献越大)
+#define W1 6  // D1 最左
+#define W2 4  // D2
+#define W3 2  // D3
+#define W4 0  // D4 中心左
+#define W5 0  // D5 中心右
+#define W6 2  // D6
+#define W7 4  // D7
+#define W8 6  // D8 最右
+// 转向PD ★ Kp已调低适配连续误差, UART3: KP/KD实时调
+float g_track_kp = 6.0f;        // 转向P (误差-6~+6, 建议2~5)
+float g_track_kd = 3.5f;        // 转向D (建议2~6)
+#define STEER_MAX        35     // 转向输出上限 (最大差速 ≈ 这个值×2)
 //=====================================================================================
 
 int16_t g_speed_fast  = TRACK_SPEED_FAST;
@@ -69,11 +79,12 @@ int16_t g_speed_slow  = TRACK_SPEED_SLOW;
 int16_t g_speed_min   = TRACK_SPEED_MIN;
 
 /**
- * @brief 巡线控制函数 — 分支查表 + 转向PD + 防抖
+ * @brief 巡线控制函数 — 加权差比和 + 转向PD
  *
  *        三层架构:
- *          第1层: 8路传感器 → 状态分支 → error值(-6~+6)
- *          第2层: 防抖滤波 (连续2次相同分支才更新error)
+ *          第1层: 8路传感器 → 加权差比和 → 连续error(-6~+6)
+ *                 error = (sum_L - sum_R) / cnt
+ *          第2层: FIND丢线处理 (保持上帧error走惯性)
  *          第3层: 转向PD (位置式PD, error→steer_out)
  *                 L = base - steer_out,  R = base + steer_out
  *
@@ -83,62 +94,47 @@ void track(void)
 {
     uint8_t d1 = D1, d2 = D2, d3 = D3, d4 = D4;
     uint8_t d5 = D5, d6 = D6, d7 = D7, d8 = D8;
-    #define ON  LINE_RAW_VALUE
-    #define OFF !LINE_RAW_VALUE
 
     int16_t L, R;
 
     // ============================================================
-    // 第1层: 分支查表 → 原始error值 (-6 ~ +6)
+    // 第1层: 加权差比和 → 连续error (-6 ~ +6)
+    //        sum_L = d1*6 + d2*4 + d3*2 + d4*1
+    //        sum_R = d5*1 + d6*2 + d7*4 + d8*6
+    //        error = (sum_L - sum_R) / cnt  (正=左偏需右转)
     // ============================================================
+    int16_t sum_L = (int16_t)d1*W1 + d2*W2 + d3*W3 + d4*W4;
+    int16_t sum_R = (int16_t)d5*W5 + d6*W6 + d7*W7 + d8*W8;
+    uint8_t cnt   = d1 + d2 + d3 + d4 + d5 + d6 + d7 + d8;
+
     float raw_error;
     uint8_t branch;
 
-    if ((d4 == ON && d5 == ON) || (d4 == ON && d5 != ON) || (d4 != ON && d5 == ON))
+    if (cnt == 0)            // 全白 → 丢线
     {
-        branch = 0;  raw_error =  0.0f;   // GO  正中直行
+        branch = 7;
+        raw_error = 0.0f;
     }
-    else if (d3 == ON && d4 != ON)
+    else if (cnt == 8)       // 全黑 → 十字路口
     {
-        branch = 1;  raw_error =  2.0f;   // R1  线偏左, 需右转
-    }
-    else if (d2 == ON)
-    {
-        branch = 2;  raw_error =  4.3f;   // R2  线偏左较多
-    }
-    else if (d1 == ON)
-    {
-        branch = 3;  raw_error =  6.0f;   // R3  线在最左, 急转
-    }
-    else if (d6 == ON && d5 != ON)
-    {
-        branch = 4;  raw_error = -2.0f;   // L1  线偏右, 需左转
-    }
-    else if (d7 == ON)
-    {
-        branch = 5;  raw_error = -4.3f;   // L2  线偏右较多
-    }
-    else if (d8 == ON)
-    {
-        branch = 6;  raw_error = -6.0f;   // L3  线在最右, 急转
-    }
-    else if (d1 == OFF && d2 == OFF && d3 == OFF && d4 == OFF
-          && d5 == OFF && d6 == OFF && d7 == OFF && d8 == OFF)
-    {
-        branch = 7;  raw_error = 0.0f;    // FIND 全白丢线 (error保持)
-    }
-    else if (d1 == ON && d2 == ON && d3 == ON && d4 == ON
-          && d5 == ON && d6 == ON && d7 == ON && d8 == ON)
-    {
-        branch = 8;  raw_error = 0.0f;    // CROSS 全黑十字
+        branch = 8;
+        raw_error = 0.0f;
     }
     else
     {
-        branch = 9;  raw_error = 0.0f;    // 兜底
+        // 连续误差: 左侧加权和 - 右侧加权和, 除以踩线数归一化
+        raw_error = (float)(sum_L - sum_R) / (float)cnt;
+
+        // OLED 状态: 按 |error| 阈值映射分支
+        float abs_e = (raw_error > 0.0f) ? raw_error : -raw_error;
+        if      (abs_e < 0.5f)  branch = 0;                               // GO
+        else if (abs_e < 2.0f)  branch = (raw_error > 0.0f) ? 1 : 4;      // R1 / L1
+        else if (abs_e < 4.0f)  branch = (raw_error > 0.0f) ? 2 : 5;      // R2 / L2
+        else                    branch = (raw_error > 0.0f) ? 3 : 6;      // R3 / L3
     }
 
     // ============================================================
-    // 第2层: 防抖 — 已禁用 (直接使用raw_error)
+    // 第2层: FIND丢线处理 — 保持上帧error走惯性
     // ============================================================
     float error = raw_error;
     static uint8_t ever_seen_line = 0;

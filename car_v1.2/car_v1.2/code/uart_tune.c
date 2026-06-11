@@ -35,8 +35,8 @@ static int  tune_parse_float(const char *s, float *out);
 void uart_tune_init(uint32_t baud)
 {
     uart_init(UART_3, (int)baud, 1);   // 优先级 1（低于 TIM3=0）
-    uart_sendstr(UART_3, "\r\n=== PID Tune Ready ===\r\n");
-    uart_sendstr(UART_3, "Commands: P/I/D<val>, PA/IA/DA<val>, PB/IB/DB<val>, S<val>, ?\r\n\r\n");
+    uart_sendstr(UART_3, "\r\n=== UART3 Tune Ready ===\r\n");
+    uart_sendstr(UART_3, "Type ? for status, HELP for commands\r\n");
 }
 
 // ============================================================
@@ -220,17 +220,21 @@ static void tune_print_status(void)
 // ============================================================
 static void tune_print_help(void)
 {
-    uart_sendstr(UART_3,
-        "\r\n=== Commands ===\r\n"
-        " P/I/D<float>   both motors PID\r\n"
-        " PA/IA/DA<val>  motorA PID\r\n"
-        " PB/IB/DB<val>  motorB PID\r\n"
-        " S<int>         scale all speeds\r\n"
-        " KP<float>      steer P (def 2.5)\r\n"
-        " KD<float>      steer D (def 3.5)\r\n"
-        " ?              print status\r\n"
-        " HELP           this message\r\n"
-    );
+    char buf[200];
+    sprintf(buf,
+        "\r\n=== Commands (UART3 115200) ===\r\n"
+        " P/I/D<val>     both motors PID      (now: P=%.0f I=%.0f D=%.0f)\r\n"
+        " PA/IA/DA<val>  motorA only\r\n"
+        " PB/IB/DB<val>  motorB only\r\n"
+        " S<int>         scale all speeds      (now: F=%d S=%d N=%d)\r\n"
+        " KP<float>      steer P               (now: %.1f)\r\n"
+        " KD<float>      steer D               (now: %.1f)\r\n"
+        " ?              print full status\r\n"
+        " HELP           this message\r\n",
+        motorA.p, motorA.i, motorA.d,
+        g_speed_fast, g_speed_slow, g_speed_min,
+        g_track_kp, g_track_kd);
+    uart_sendstr(UART_3, buf);
 }
 
 // ============================================================

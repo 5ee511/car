@@ -10,10 +10,9 @@
 
 ```
 car_v1.2/
-├── code/                    # 应用层（巡线、PID、电机、滤波）
+├── code/                    # 应用层（巡线、PID、电机、滤波、UART调参）
 ├── ml_libs/                 # 底层驱动库（GPIO/PWM/TIM/UART/I2C/OLED 等）
 │   └── headfile.h           #   **统一头文件**，所有 .c 都 include 它
-├── menu/                    # OLED 菜单系统（⚠️ 源文件缺失，仅 .o 残留）
 ├── skills/                  # AI Agent 调试方法论 → [skills/SKILL.md](skills/SKILL.md)
 ├── sys/                     # CMSIS 系统文件
 ├── user/                    # 入口（main.c, isr.c）
@@ -103,13 +102,20 @@ exti_init(EXTI_PA6, FALLING, 0);        // 引脚 + 触发沿 + 优先级
 
 ## 关键架构决策
 
-- **速度闭环**: PID 控制器（增量式 DELTA_PID），默认参数 P=60, I=40, D=0（在 `user/main.c` 中 `pid_init()` 设置）
-- **巡线逻辑**: **分支判断法**（非 README 中的加权公式）— 8 种传感器状态 → 查表输出左右轮速度，详见 [code/gray_track.c](code/gray_track.c)
+- **速度闭环**: PID 控制器（增量式 DELTA_PID），默认参数 P=200, I=88, D=15（在 `user/main.c` 中 `pid_init()` 设置）
+- **巡线逻辑**: **加权差比和 + 转向PD**（三层架构），详见 [code/gray_track.c](code/gray_track.c)
+  - 第1层: 8 路传感器 → 加权差比和 → 连续 error（-6~+6 float）
+    - 权重: D1=6, D2=4, D3=2, D4=1, D5=1, D6=2, D7=4, D8=6
+    - 公式: `error = (sum_L - sum_R) / cnt`
+  - 第2层: FIND 丢线保持上一帧 error 走惯性
+  - 第3层: 转向 PD（位置式），`steer_out = Kp*error + Kd*(error-prev_error)`
+  - 差速转向: `L = base - steer_out`, `R = base + steer_out`，带弯道减速
   - 状态: `GO`(直行), `R1/R2/R3`(右转三档), `L1/L2/L3`(左转三档), `FIND`(丢线反向搜索), `CROSS`(十字路口直行)
-  - 速度档位宏在 `gray_track.c` 顶部: `TRACK_SPEED_FAST=25, MED=18, SLOW=12, SHARP=8, MIN=4`
-  - ⚠️ README.md 中的加权差比和公式是**设计目标**，当前未实现
+  - 可调参数在 `gray_track.c` 顶部: `TRACK_SPEED_FAST=25, SLOW=14, MIN=2`，`g_track_kp=3.0f, g_track_kd=4.0f`，`STEER_MAX=20`
+  - 支持 UART3 命令 `KP<值>` / `KD<值>` / `S<值>` 实时调参
 - **PID 周期**: TIM3 定时中断（100ms / 10Hz）调用 `pid_control()`
 - **主循环频率**: ~12.5Hz（`delay_ms(80)`），非 README 中的 50Hz
+- **UART3 实时调参**: `code/uart_tune.c/h`，通过 `#define USE_UART_TUNE` 启用。支持命令: `P/I/D<值>`(双电机PID), `PA/IA/DA<值>`(电机A), `PB/IB/DB<值>`(电机B), `KP<值>`(转向P), `KD<值>`(转向D), `S<值>`(速度缩放), `?`(状态打印)
 - **I2C 总线共享**: 一条 I2C 总线挂 MPU6050(0xD0) + HMC5883L(0x3C) + OLED(0x78)
 - **printf 重定向**: 硬编码 USART1，在 `ml_uart.c` 中实现 `fputc()`
 
@@ -119,8 +125,11 @@ exti_init(EXTI_PA6, FALLING, 0);        // 引脚 + 触发沿 + 优先级
 |------|----------|------|
 | `g_sensor_data[8]` | `gray_track.c` | 8 路灰度传感器值（0=白, 1=黑线） |
 | `g_track_state[8]` | `gray_track.c` | 巡线状态字符串，OLED 第 2 行显示 |
+| `g_track_kp` | `gray_track.c` | 转向 PD 的 Kp（float，默认 3.0） |
+| `g_track_kd` | `gray_track.c` | 转向 PD 的 Kd（float，默认 4.0） |
+| `g_speed_fast/slow/min` | `gray_track.c` | 巡线速度变量（int16_t，从宏初始化） |
 | `Encoder_count1/2` | `motor.c` | 编码器脉冲计数（EXTI 累加，PID 周期清零） |
-| `motorA`, `motorB` | `pid.c` | 电机 PID 结构体（含 target/now/out 等） |
+| `motorA`, `motorB` | `pid.c` | 电机 PID 结构体（含 target/now/p/i/d/out 等） |
 | `motorA_dir`, `motorB_dir` | `motor.c` | 电机方向标志（统一：0=正转, 1=反转，见 `pid.c`） |
 | `g_tim3_tick` | `isr.c` | TIM3 中断计数器（调试用） |
 
@@ -133,9 +142,9 @@ exti_init(EXTI_PA6, FALLING, 0);        // 引脚 + 触发沿 + 优先级
 | 1 | 8 路传感器值 (D1~D8) | `0 0 1 0 0 0 0 0` |
 | 2 | 巡线状态 + 目标速度 | `GO  A: 25 B: 25` |
 | 3 | PID 估算速度 (motorA/B.now) | `E1  12 E2  14` |
-| 4 | 清空 | `                ` |
+| 4 | PID 实时 P/I 值 | `A200/088B200/088` |
 
-> ⚠️ 菜单系统（`Key_Init`/`menu_task_show`/`menu_task_switch`）已从 `main.c` 移除，OLED 不再显示菜单
+> ⚠️ 菜单系统（`Key_Init`/`menu_task_show`/`menu_task_switch`）已从 `main.c` 移除，OLED 不再显示菜单。`menu/` 源文件不在仓库中（仅 `user/Objects/` 下有 .o/.crf 残留）。
 
 ## 注意事项
 
@@ -146,7 +155,8 @@ exti_init(EXTI_PA6, FALLING, 0);        // 引脚 + 触发沿 + 优先级
 - **PWM 仅正向**: `pidout_limit()` 限幅 0~MAX_DUTY(50000)，无负值输出
 - **HMC5883L 已禁用**: `isr.c` 中 `HMC5883L_GetData()` 被注释，`yaw_hmc` 恒为 0
 - **EXTI0 未用也开着**: `exti_init(EXTI_PB0, ...)` 已调用但 MPU6050 未初始化，PB0 浮空可能误触发 ISR 干扰 I2C。不用 MPU6050 时应一并注释
-- **菜单系统已停用**: `main.c` 中 `Key_Init()`/`menu_task_*` 已移除，`headfile.h` 中 `key.h`/`menu.h` 的 include 已注释。OLED 无菜单交互。`../menu/` 源文件不在仓库中（仅 `user/Objects/` 下有 .o/.crf 残留）
+- **菜单系统已停用**: `main.c` 中 `Key_Init()`/`menu_task_*` 已移除，`headfile.h` 中 `key.h`/`menu.h` 的 include 已注释。OLED 无菜单交互。`menu/` 源文件不在仓库中（仅 `user/Objects/` 下有 .o/.crf 残留）
+- **UART3 调参**: `code/uart_tune.c/h` 提供实时 PID/速度调参。在 `uart_tune.h` 中 `#define USE_UART_TUNE` 启用。`main.c` 中 `uart_tune_init(115200)` 和主循环 `uart_tune_process()` 已调用。UART3 ISR (`ml_uart.c`) 中调用 `uart_tune_rx_isr()` 喂字节到环形缓冲区。详见 [code/uart_tune_速查卡.txt](code/uart_tune_速查卡.txt)
 - **调试方法论**: 改代码前务必阅读 [skills/SKILL.md](skills/SKILL.md) — 含四步调试法、反例速查、硬性规则
 - **AD2 引脚**: 代码和 README 均使用 PB15，原始代码误写为 PB3（`grayscale_sensor.h/c` 已修正）
 - **不要在此仓库运行代码**: 本机无 Keil 环境，代码由用户烧录测试
@@ -154,22 +164,29 @@ exti_init(EXTI_PA6, FALLING, 0);        // 引脚 + 触发沿 + 优先级
 
 ## 常见调试与调参
 
-### 调巡线速度
-编辑 `code/gray_track.c` 顶部宏：
+### 调巡线速度与转向 PD
+编辑 `code/gray_track.c` 顶部宏和全局变量：
 ```c
-#define TRACK_SPEED_FAST    25   // 直道
-#define TRACK_SPEED_MED     18   // 中速转弯
-#define TRACK_SPEED_SLOW    12   // 慢速转弯
-#define TRACK_SPEED_SHARP    8   // 急转弯
-#define TRACK_SPEED_MIN      4   // 原地微调
+#define TRACK_SPEED_FAST    25   // 直道/基准速度
+#define TRACK_SPEED_SLOW    14   // 丢线搜索速度
+#define TRACK_SPEED_MIN      2   // 内轮最低速
+float g_track_kp = 3.0f;        // 转向P: 越大转弯越猛 (建议2~5)
+float g_track_kd = 4.0f;        // 转向D: 越大越稳 (建议2~6)
+#define STEER_MAX        20     // 转向输出上限
 ```
+
+或通过 UART3 实时调参（无需重新编译）:
+- `KP<值>` / `KD<值>` — 实时修改转向 PD
+- `S<值>` — 按比例缩放全部速度档位
 
 ### 调 PID 参数
 编辑 `user/main.c` 中的 `pid_init()` 调用：
 ```c
-pid_init(&motorA, DELTA_PID, 60, 40, 0);  // P, I, D
-pid_init(&motorB, DELTA_PID, 60, 40, 0);
+pid_init(&motorA, DELTA_PID, 200, 88, 15);  // P, I, D
+pid_init(&motorB, DELTA_PID, 200, 88, 15);
 ```
+
+或通过 UART3 实时调参: `P<值>` / `I<值>` / `D<值>`（双电机），`PA<值>` / `IA<值>` / `DA<值>`（仅电机A），`PB<值>` / `IB<值>` / `DB<值>`（仅电机B）。
 
 ### 串口调试（山外多功能调试助手）
 - `printf()` 自动通过 USART1 (PA9/PA10, 115200) 输出。启动时发送 `printf("Car v1.2 Ready\r\n")` 验证串口通断
