@@ -58,20 +58,20 @@ void sensor_test(void) {
 //=====================================================================================
 #define TRACK_SPEED_FAST    45   // 直道/基准速度
 #define TRACK_SPEED_SLOW    25   // 丢线搜索速度 (FIND时用)
-#define TRACK_SPEED_MIN      4   // 内轮最低速 (调小=差速大, 调大=差速小)
+#define TRACK_SPEED_MIN      2   // 内轮最低速 (调小=差速大, 调大=差速小)
 // 加权差比和 ── 传感器权重 (外层权重大, 线偏得越多贡献越大)
 #define W1 6  // D1 最左
-#define W2 4  // D2
-#define W3 2  // D3
+#define W2 4.2  // D2
+#define W3 1.8  // D3
 #define W4 0  // D4 中心左
 #define W5 0  // D5 中心右
-#define W6 2  // D6
-#define W7 4  // D7
+#define W6 1.8  // D6
+#define W7 4.2  // D7
 #define W8 6  // D8 最右
-// 转向PD ★ Kp已调低适配连续误差, UART3: KP/KD实时调
-float g_track_kp = 6.0f;        // 转向P (误差-6~+6, 建议2~5)
-float g_track_kd = 3.5f;        // 转向D (建议2~6)
-#define STEER_MAX        35     // 转向输出上限 (最大差速 ≈ 这个值×2)
+// 转向PD ★ Kp已减半适配去/cnt后的量级, UART3: KP/KD实时调
+float g_track_kp = 5.8f;        // 转向P (误差0~12, 建议2~5)  已去/cnt → 量级变大, Kp需减半
+float g_track_kd = 3.0f;        // 转向D (建议2~6)
+#define STEER_MAX        60     // 转向输出上限 (最大差速 ≈ 这个值×2)
 //=====================================================================================
 
 int16_t g_speed_fast  = TRACK_SPEED_FAST;
@@ -82,8 +82,8 @@ int16_t g_speed_min   = TRACK_SPEED_MIN;
  * @brief 巡线控制函数 — 加权差比和 + 转向PD
  *
  *        三层架构:
- *          第1层: 8路传感器 → 加权差比和 → 连续error(-6~+6)
- *                 error = (sum_L - sum_R) / cnt
+ *          第1层: 8路传感器 → 加权差比和(不除cnt) → error(±12)
+ *                灯越多=弯越急 → error越大 → 转向越猛
  *          第2层: FIND丢线处理 (保持上帧error走惯性)
  *          第3层: 转向PD (位置式PD, error→steer_out)
  *                 L = base - steer_out,  R = base + steer_out
@@ -98,10 +98,15 @@ void track(void)
     int16_t L, R;
 
     // ============================================================
-    // 第1层: 加权差比和 → 连续error (-6 ~ +6)
-    //        sum_L = d1*6 + d2*4 + d3*2 + d4*1
-    //        sum_R = d5*1 + d6*2 + d7*4 + d8*6
-    //        error = (sum_L - sum_R) / cnt  (正=左偏需右转)
+    // 第1层: 加权差比和 → 连续error (范围约 ±12)
+    //        sum_L = d1*6 + d2*4.2 + d3*1.8 + d4*0
+    //        sum_R = d5*0 + d6*1.8 + d7*4.2 + d8*6
+    //
+    //   ★ 不去除以 cnt (= 亮灯数), 原因:
+    //      亮灯越多说明弯越急 → error应该越大
+    //      除以cnt会导致"灯越多error越小"的反直觉行为
+    //   ★ 不加防抖: 加权连续误差本身平滑, 单灯抖动仅改变1.8~4.2,
+    //      不会像离散查表那样导致error跳变
     // ============================================================
     int16_t sum_L = (int16_t)d1*W1 + d2*W2 + d3*W3 + d4*W4;
     int16_t sum_R = (int16_t)d5*W5 + d6*W6 + d7*W7 + d8*W8;
@@ -122,14 +127,14 @@ void track(void)
     }
     else
     {
-        // 连续误差: 左侧加权和 - 右侧加权和, 除以踩线数归一化
-        raw_error = (float)(sum_L - sum_R) / (float)cnt;
+        // 连续误差: 左侧加权和 - 右侧加权和 (不除cnt!)
+        raw_error = (float)(sum_L - sum_R);
 
-        // OLED 状态: 按 |error| 阈值映射分支
+        // OLED 状态: 按 |error| 阈值映射分支 (适配新量级 0~12)
         float abs_e = (raw_error > 0.0f) ? raw_error : -raw_error;
-        if      (abs_e < 0.5f)  branch = 0;                               // GO
-        else if (abs_e < 2.0f)  branch = (raw_error > 0.0f) ? 1 : 4;      // R1 / L1
-        else if (abs_e < 4.0f)  branch = (raw_error > 0.0f) ? 2 : 5;      // R2 / L2
+        if      (abs_e < 1.5f)  branch = 0;                               // GO
+        else if (abs_e < 4.0f)  branch = (raw_error > 0.0f) ? 1 : 4;      // R1 / L1
+        else if (abs_e < 7.5f)  branch = (raw_error > 0.0f) ? 2 : 5;      // R2 / L2
         else                    branch = (raw_error > 0.0f) ? 3 : 6;      // R3 / L3
     }
 
@@ -166,9 +171,9 @@ void track(void)
     static float prev_error = 0.0f;
 
     float diff  = error - prev_error;
+    prev_error = error;
 
     float steer_out = g_track_kp * error + g_track_kd * diff;
-    prev_error = error;
 
     // 限幅
     if (steer_out >  STEER_MAX) steer_out =  STEER_MAX;
@@ -176,22 +181,25 @@ void track(void)
 
     // ============================================================
     // error → 左右轮速度 (差速转向)
+    //   公式: L = base - steer_out,  R = base + steer_out
+    //   内轮减速, 外轮适当提速 — 但外轮不能超过直道速度!
+    //   否则弯道上外轮冲太快 → 车甩出黑线
     // ============================================================
-    // 弯道减速: |error|越大, base越小
+    // 弯道减速: |error|越大, base越低
+    // error范围约0~12, /12归一化后×0.7 = 弯道最多减速70% (给内轮留下降空间)
     float abs_err = (error > 0.0f) ? error : -error;
-    float curve_factor = 1.0f - abs_err / 8.0f * 0.4f;
+    float curve_factor = 1.0f - abs_err / 12.0f * 0.7f;
     int16_t base = (int16_t)((float)g_speed_fast * curve_factor);
     if (base < g_speed_min) base = g_speed_min;
 
     L = (int16_t)((float)base - steer_out);
     R = (int16_t)((float)base + steer_out);
 
-    // 限幅
-    int16_t wheel_max = g_speed_fast + (int16_t)STEER_MAX;
-    if (L < g_speed_min) L = g_speed_min;
-    if (L > wheel_max)   L = wheel_max;
-    if (R < g_speed_min) R = g_speed_min;
-    if (R > wheel_max)   R = wheel_max;
+    // 限幅: 内轮最低可到0(完全停转), 外轮不超过直道速度
+    if (L < 0) L = 0;
+    if (L > g_speed_fast) L = g_speed_fast;
+    if (R < 0) R = 0;
+    if (R > g_speed_fast) R = g_speed_fast;
 
     // ============================================================
     // 状态显示 (OLED第2行)

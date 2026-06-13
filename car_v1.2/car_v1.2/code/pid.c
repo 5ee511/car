@@ -71,8 +71,10 @@ void pid_control()
 	// 1.角度环PID输出 设定为速度环的目标值
 	//motor_target_set(-angle.out, angle.out);
 	// 2.获取当前速度
-	if(motorA_dir){motorA.now = Encoder_count1;}else{motorA.now = -Encoder_count1;}
-	if(motorB_dir){motorB.now = Encoder_count2;}else{motorB.now = -Encoder_count2;}
+	// motorA_dir=0→正转, Encoder正向计数 → now应正
+	// motorA_dir=1→反转, Encoder反向计数 → -Encoder = 正（target恒正）
+	if(motorA_dir){motorA.now = -Encoder_count1;}else{motorA.now = Encoder_count1;}
+	if(motorB_dir){motorB.now = -Encoder_count2;}else{motorB.now = Encoder_count2;}
 	Encoder_count1 = 0;
 	Encoder_count2 = 0;
 	// 3.输入PID控制器进行计算

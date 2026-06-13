@@ -25,6 +25,30 @@ car_v1.2/
 - Include 路径: `..\user;..\ml_libs;..\code;..\sys`（平铺式，头文件直接 include 文件名）
 - **编译器**: ARM Compiler 5 (`__CC_ARM`)，预定义宏 `STM32F10X_MD`
 
+## 时序架构（关键！）
+
+系统有两条时间线并行运行：
+
+| 时间线 | 周期 | 触发源 | 做什么 |
+|--------|------|--------|--------|
+| **PID 速度环** | 100ms | TIM3 中断 → `pid_control()` | 读编码器 → 增量 PID 计算 → 更新 PWM 占空比 |
+| **主循环** | ~80ms | `main()` while(1) | 读 8 路灰度 → `track()` 巡线 → OLED 刷新 → `uart_tune_process()` |
+
+- 编码器计数值每个 PID 周期清零 → 速度单位 = 脉冲/100ms
+- 不要在 TIM3 ISR 中加耗时操作，会阻塞主循环
+
+## 巡线算法（gray_track.c）— 四层架构
+
+详见 [循线控制逻辑详解.md](循线控制逻辑详解.md)，这里只给速览：
+
+1. **防抖**: 1 帧确认传感器状态后才更新 error（单帧毛刺被过滤），但 ≥2 灯同时翻转立即响应。仅 80ms 延迟
+2. **加权差比和（不除 cnt！）**: 8 路传感器加权求和，直接用 `sum_L - sum_R` 作 error（范围 ±12）。灯越多=弯越急→error越大→转向越猛
+3. **丢线/十字处理**: 全白 → FIND 状态（惯性保持），全黑 → CROSS 状态（十字路口）
+4. **转向 PD**: `steer_out = Kp*error + Kd*(error - prev_error)`，简洁无多余逻辑。限幅 ±60
+5. **差速分配**: `L = base - steer_out, R = base + steer_out`，内轮可降到 0（停转），外轮锁死 `g_speed_fast`。弯道整体降速 70%
+
+运行时状态显示在 OLED: `GO / R1~R3 / L1~L3 / FIND / CROSS`
+
 ## 开发工作流（AI 代理须知）
 
 > ⚠️ **AI 代理无法编译或烧录代码**。所有代码由用户在本机 Keil MDK 中编译和烧录。
@@ -46,6 +70,14 @@ car_v1.2/
 - 看文本输出 → 用 `printf()`，注释掉 `datavision_send()`
 - 看波形图 → 用 `datavision_send()`，注释掉 `printf()`
 
+### UART3 实时调参（`code/uart_tune.c`）
+UART3（PB10/PB11，115200）支持运行时热调 PID 和巡线参数，无需重新编译。详见 [uart_tune_速查卡.txt](code/uart_tune_速查卡.txt)：
+- `P<I<D<value>` — 两电机 PID 增益
+- `S<value>` — 直道基准速度（其余三档自动缩放）
+- `KP<KD<value>` — 巡线转向 P/D
+- `?` — 打印全部参数
+- **典型调参流程**: `? → S30 → KP4 → KD5 → P250 → ?`
+
 ## ⚠️ 文件编码警告
 
 **本项目中文源文件使用 GB2312 编码**。在 VS Code 中打开含中文的文件（注释、字模数据、OLED 字体）时，UTF-8 下中文会显示为乱码。
@@ -53,6 +85,16 @@ car_v1.2/
 - ❌ **禁止用 VS Code 编辑含 `>0x7F` 字节的文件**（如 `oled_font.c`、字模数据），会破坏 GB2312 编码导致 Keil 编译报错 `invalid multibyte character sequence`
 - ✅ 修改此类文件时，用脚本处理（转换编码或 hex 编辑）
 - ✅ 新增代码中的显示字符串用英文，注释可用中文（确保 GB2312 兼容）
+
+## 关键数据结构
+
+| 结构体 | 定义位置 | 用途 |
+|--------|---------|------|
+| `pid_t` | `code/pid.h` | PID 控制器（含 target/now/error[3]/p/i/d/out 等） |
+| `KF_t` | `code/filter.h` | 卡尔曼滤波器（协方差矩阵 P、K1/K2 增益） |
+| 全局 `pid_t motorA, motorB` | `code/pid.c` | 左右轮速度 PID 实例（DELTA_PID 模式） |
+| 全局 `KF_t KF_Yaw, KF_Roll, KF_Pitch` | `code/filter.c` | 姿态角卡尔曼融合 |
+| `g_sensor_data[8]` | `code/gray_track.c` | 8 路灰度原始值 0/1 |
 
 ## 编码规范
 
@@ -102,20 +144,9 @@ exti_init(EXTI_PA6, FALLING, 0);        // 引脚 + 触发沿 + 优先级
 
 ## 关键架构决策
 
-- **速度闭环**: PID 控制器（增量式 DELTA_PID），默认参数 P=200, I=88, D=15（在 `user/main.c` 中 `pid_init()` 设置）
-- **巡线逻辑**: **加权差比和 + 转向PD**（三层架构），详见 [code/gray_track.c](code/gray_track.c)
-  - 第1层: 8 路传感器 → 加权差比和 → 连续 error（-6~+6 float）
-    - 权重: D1=6, D2=4, D3=2, D4=1, D5=1, D6=2, D7=4, D8=6
-    - 公式: `error = (sum_L - sum_R) / cnt`
-  - 第2层: FIND 丢线保持上一帧 error 走惯性
-  - 第3层: 转向 PD（位置式），`steer_out = Kp*error + Kd*(error-prev_error)`
-  - 差速转向: `L = base - steer_out`, `R = base + steer_out`，带弯道减速
-  - 状态: `GO`(直行), `R1/R2/R3`(右转三档), `L1/L2/L3`(左转三档), `FIND`(丢线反向搜索), `CROSS`(十字路口直行)
-  - 可调参数在 `gray_track.c` 顶部: `TRACK_SPEED_FAST=25, SLOW=14, MIN=2`，`g_track_kp=3.0f, g_track_kd=4.0f`，`STEER_MAX=20`
-  - 支持 UART3 命令 `KP<值>` / `KD<值>` / `S<值>` 实时调参
+- **速度闭环**: PID 控制器（增量式 DELTA_PID），默认参数 P=200, I=88, D=15（在 `user/main.c` 中 `pid_init()` 设置），详见上方 [时序架构](#时序架构关键)
 - **PID 周期**: TIM3 定时中断（100ms / 10Hz）调用 `pid_control()`
 - **主循环频率**: ~12.5Hz（`delay_ms(80)`），非 README 中的 50Hz
-- **UART3 实时调参**: `code/uart_tune.c/h`，通过 `#define USE_UART_TUNE` 启用。支持命令: `P/I/D<值>`(双电机PID), `PA/IA/DA<值>`(电机A), `PB/IB/DB<值>`(电机B), `KP<值>`(转向P), `KD<值>`(转向D), `S<值>`(速度缩放), `?`(状态打印)
 - **I2C 总线共享**: 一条 I2C 总线挂 MPU6050(0xD0) + HMC5883L(0x3C) + OLED(0x78)
 - **printf 重定向**: 硬编码 USART1，在 `ml_uart.c` 中实现 `fputc()`
 
@@ -158,6 +189,7 @@ exti_init(EXTI_PA6, FALLING, 0);        // 引脚 + 触发沿 + 优先级
 - **菜单系统已停用**: `main.c` 中 `Key_Init()`/`menu_task_*` 已移除，`headfile.h` 中 `key.h`/`menu.h` 的 include 已注释。OLED 无菜单交互。`menu/` 源文件不在仓库中（仅 `user/Objects/` 下有 .o/.crf 残留）
 - **UART3 调参**: `code/uart_tune.c/h` 提供实时 PID/速度调参。在 `uart_tune.h` 中 `#define USE_UART_TUNE` 启用。`main.c` 中 `uart_tune_init(115200)` 和主循环 `uart_tune_process()` 已调用。UART3 ISR (`ml_uart.c`) 中调用 `uart_tune_rx_isr()` 喂字节到环形缓冲区。详见 [code/uart_tune_速查卡.txt](code/uart_tune_速查卡.txt)
 - **调试方法论**: 改代码前务必阅读 [skills/SKILL.md](skills/SKILL.md) — 含四步调试法、反例速查、硬性规则
+- **编码器符号陷阱 ⚠️**: `pid_control()` 中 `motorA_dir=0` 表示正转，此时编码器正向计数（Encoder_count1>0），所以 `motorA.now = Encoder_count1`（不取反）。`motorA_dir=1` 反转时编码器反向计数（<0），`motorA.now = -Encoder_count1` 使其回正。修改电机方向或编码器逻辑时必须同步检查这四处
 - **AD2 引脚**: 代码和 README 均使用 PB15，原始代码误写为 PB3（`grayscale_sensor.h/c` 已修正）
 - **不要在此仓库运行代码**: 本机无 Keil 环境，代码由用户烧录测试
 - **VS Code IntelliSense**: `.vscode/c_cpp_properties.json` 已配置 include 路径和宏 (`STM32F10X_MD`, `__CC_ARM`)
@@ -167,12 +199,12 @@ exti_init(EXTI_PA6, FALLING, 0);        // 引脚 + 触发沿 + 优先级
 ### 调巡线速度与转向 PD
 编辑 `code/gray_track.c` 顶部宏和全局变量：
 ```c
-#define TRACK_SPEED_FAST    25   // 直道/基准速度
-#define TRACK_SPEED_SLOW    14   // 丢线搜索速度
-#define TRACK_SPEED_MIN      2   // 内轮最低速
-float g_track_kp = 3.0f;        // 转向P: 越大转弯越猛 (建议2~5)
-float g_track_kd = 4.0f;        // 转向D: 越大越稳 (建议2~6)
-#define STEER_MAX        20     // 转向输出上限
+#define TRACK_SPEED_FAST    30   // 直道/基准速度 (弯道拐不过就先降这个)
+#define TRACK_SPEED_SLOW    18   // 丢线搜索速度
+#define TRACK_SPEED_MIN      2   // 弯道base保底速度
+float g_track_kp = 5.8f;        // 转向P: 越大转弯越猛
+float g_track_kd = 3.0f;        // 转向D: 越大越稳
+#define STEER_MAX        60     // 转向输出上限
 ```
 
 或通过 UART3 实时调参（无需重新编译）:
