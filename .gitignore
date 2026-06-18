@@ -1,0 +1,22 @@
+# Keil MDK build outputs
+*.crf
+*.d
+*.o
+*.axf
+*.hex
+*.lnp
+*.sct
+*.dep
+*.lst
+*.htm
+*.build_log.htm
+*.map
+*.iex
+
+# Keil user-specific settings
+*.uvguix.*
+
+# Directories
+Objects/
+Listings/
+DebugConfig/
