@@ -1,4 +1,10 @@
-# AGENTS.md — 2024 电赛 H 题 自动行驶小车
+# AGENTS.md — 2024 电赛 H 题 自动行驶小车（参考版）
+
+> ⚠️ **此文件描述的是旧版/移植参考项目的目录结构（`Start/`, `System/`, `Library/`, `Hardware/`, `User/`），与当前实际代码库结构（`code/`, `ml_libs/`, `user/`, `sys/`）不同。**
+>
+> **AI 代理应以根目录 [`AGENTS.md`](../AGENTS.md) 为准。** 本文件保留作为跨项目代码移植时的参考——用于理解另一种常见的 STM32 SPL 项目组织方式。
+>
+> 本目录下的知识文档（`项目全景说明书.md`、`循线控制逻辑详解.md`、`MPU6050陀螺仪逻辑详解.md`）适用于两个版本，但目录路径需按根 AGENTS.md 做映射。
 
 ## 项目概览
 
@@ -50,9 +56,9 @@
 - `GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE)` 释放了 PA15/JTDI 用作普通 IO
 - MPU6050 DMP `MPU6050_DMP_Get_Data()` 返回非零时需循环重试（I2C 时序敏感）
 
-## 可用技能 (Skills)
+## 可用技能 (Skills) — 计划中
 
-在 Chat 中输入 `/` 可以调用以下专项技能：
+> 以下技能目前仅在本文档中引用，实际 `skills/` 目录中尚未创建。当前可用的技能：[`skills/SKILL.md`](../skills/SKILL.md)（Agent 调试范式）。
 
 | 技能命令 | 说明 |
 |---------|------|
@@ -60,7 +66,7 @@
 | `/stm32-mpu6050` | MPU6050 陀螺仪 DMP 姿态解算专项（I2C → DMP → 欧拉角） |
 | `/stm32-project-overview` | 项目全景（架构、状态机、引脚表、四道赛题） |
 
-## 可用智能体 (Agents)
+## 可用智能体 (Agents) — 计划中
 
 | 智能体 | 说明 |
 |--------|------|

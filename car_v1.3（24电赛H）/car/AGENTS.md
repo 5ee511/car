@@ -61,10 +61,11 @@ car_v1.2/
 4. 改完立即让用户编译验证，不要攒一堆改动一起编译
 
 ### 新增文件时的完整清单
-参考仓库记忆 [checklist](memories/repo/checklist.md)：
-- 新 `.c` → 加入 Keil 工程 + 在 `headfile.h` 加 `#include "xxx.h"`
-- 新全局变量 → `.c` 定义 + `.h` 加 `extern` 声明
+- 新 `.c` → 加入 Keil 工程（右键 Add Existing Files）+ 在 `headfile.h` 加 `#include "xxx.h"`
+- 新全局变量 → `.c` 定义 + `.h` 加 `extern` 声明 + 需 ISR 访问的加 `volatile`
 - 废弃 `.c` → 从 Keil 工程移除，否则链接报错
+- 修改引脚 → 同步更新 `README.md` 引脚表 + 本 AGENTS.md 引脚速查
+- 新增头文件保护宏 → 用 `__filename_h_` 格式
 
 ### 串口独占规则
 `printf()` 和 `datavision_send()` 共享 USART1，**不可同时开启**。调试时二选一：
@@ -153,6 +154,28 @@ exti_init(EXTI_PA6, FALLING, 0);        // 引脚 + 触发沿 + 优先级
 - **`RUN_Q1` 直行模式**: `main.c` 中 `#define RUN_Q1` 开启后，主循环不再调用 `track()`，而是用 `pid_angle(Q1_TARGET_ANGLE, g_yaw)` 做角度 PD 保持航向直行。检测到线（cnt>1）则停车。此模式用于测试 MPU6050 角度控制，正常巡线时需注释掉
 - **Yaw 角仅用陀螺仪积分**: `KF_Yaw` 虽已定义但 ISR 中未使用卡尔曼融合，yaw 角为纯陀螺仪积分 `g_yaw += rate * 0.01f`（每 10ms 累加）。roll/pitch 使用卡尔曼融合（`KF_Roll`/`KF_Pitch`）
 - **OLED 更新时关闭 EXTI0**: `main.c` 在 OLED 刷新前 `exti_init(EXTI_PB0, DISABLE, 0)` 防止 MPU6050 INT 打断 I2C 导致 OLED 花屏，更新完后恢复。如需在 OLED 刷新期间访问 I2C 设备，务必遵循此模式
+
+## RUN_Q 步进表架构（电赛 H 题 Q2/Q3/Q4）
+
+`main.c` 使用**数据驱动状态机**完成赛题流程。通过 `#define RUN_Q2` / `RUN_Q3` / `RUN_Q4` 切换：
+
+```
+编码规则: angle=0 → 循迹模式 (track), angle≠0 → 角度模式 (pid_angle)
+每4步一个循环: 角度→循迹→角度→循迹
+```
+
+| 宏 | 步数 | 示例 | 说明 |
+|----|------|------|------|
+| `RUN_Q2` | 4 | `{0, 0, 168, 0}` | 0=循迹, 168°=掉头 |
+| `RUN_Q3` | 4 | `{50, 0, 130, 0}` | 50°/130° 变角度绕桩 |
+| `RUN_Q4` | 16 | 4 圈递增角度 | 角度从 50° 递增到 150° |
+
+**步骤过渡逻辑**（`main.c` while(1)）:
+1. 当前步完成条件：角度步 → 踩线(cnt>1)停车；循迹步 → 脱线(cnt=0)停车
+2. 过渡帧：停车 + 蜂鸣 160ms → 清零 PID/巡线状态 → `track_reset()` → 步数+1
+3. 完成后蜂鸣 4 声停车
+
+修改赛题步骤只需改 `qx_angle[]` / `qx_speed[]` 数组，无需改动状态机逻辑。
 
 ## 关键全局变量
 
