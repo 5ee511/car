@@ -8,33 +8,41 @@
 
 ```
 car_v1.2/
-├── code/                    # 应用层代码
-│   ├── motor.c/h            # 电机驱动 & 编码器初始化
-│   ├── pid.c/h              # PID 控制器 & 速度闭环
-│   ├── filter.c/h           # 卡尔曼 & 互补滤波（姿态解算）
-│   ├── grayscale_sensor.c/h # 8 路灰度传感器驱动
-│   ├── gray_track.c/h       # 巡线算法（核心）
-│   └── readme.txt
-├── ml_libs/                 # 底层驱动库
-│   ├── ml_gpio.c/h          # GPIO 配置
-│   ├── ml_pwm.c/h           # PWM 输出（TIM2~4）
-│   ├── ml_tim.c/h           # 定时器中断
-│   ├── ml_uart.c/h          # 串口通信
-│   ├── ml_i2c.c/h           # 模拟 I2C（SCL=PB6, SDA=PB7）
-│   ├── ml_exti.c/h          # 外部中断
-│   ├── ml_mpu6050.c/h       # MPU6050 六轴传感器
-│   ├── ml_hmc5883l.c/h      # HMC5883L 磁力计
-│   ├── ml_oled.c/h          # OLED 显示屏
-│   └── ml_delay.c/h         # 微秒/毫秒延时
-├── sys/                     # CMSIS 系统文件
-│   ├── stm32f10x.h          # 寄存器定义
-│   ├── system_stm32f10x.c/h # 系统时钟初始化
-│   └── startup_*.s          # 启动文件
-├── user/                    # 用户入口
-│   ├── main.c               # 主函数 & 初始化
-│   └── isr.c                # 中断服务函数
-└── .vscode/                 # VS Code C/C++ 配置
-    └── c_cpp_properties.json
+└── car/
+    ├── code/                    # 应用层代码
+    │   ├── motor.c/h            # 电机驱动 & 编码器初始化
+    │   ├── pid.c/h              # PID 控制器 & 速度闭环
+    │   ├── filter.c/h           # 卡尔曼 & 互补滤波（姿态解算）
+    │   ├── grayscale_sensor.c/h # 8 路灰度传感器驱动
+    │   ├── gray_track.c/h       # 巡线算法（核心）
+    │   ├── uart_tune.c/h        # 串口调参工具
+    │   └── readme.txt
+    ├── menu/                    # OLED 两级菜单系统
+    │   ├── oled.c/h             # OLED 驱动（显存架构+像素坐标+反显）
+    │   ├── oled_font.c/h        # ASCII + 中文字模数据
+    │   ├── key.c/h              # 3 按键驱动（PB11/PB12/PA12）
+    │   └── menu.c/h             # 两级菜单框架（2024 电赛 H 题）
+    ├── ml_libs/                 # 底层驱动库
+    │   ├── ml_gpio.c/h          # GPIO 配置
+    │   ├── ml_pwm.c/h           # PWM 输出（TIM2~4）
+    │   ├── ml_tim.c/h           # 定时器中断
+    │   ├── ml_uart.c/h          # 串口通信
+    │   ├── ml_i2c.c/h           # 模拟 I2C（SCL=PB6, SDA=PB7）
+    │   ├── ml_exti.c/h          # 外部中断
+    │   ├── ml_mpu6050.c/h       # MPU6050 六轴传感器
+    │   ├── ml_hmc5883l.c/h      # HMC5883L 磁力计
+    │   ├── ml_oled.c/h          # OLED 旧驱动（已被 menu/oled 替代,保留备用）
+    │   └── ml_delay.c/h         # 微秒/毫秒延时
+    ├── sys/                     # CMSIS 系统文件
+    │   ├── stm32f10x.h          # 寄存器定义
+    │   ├── system_stm32f10x.c/h # 系统时钟初始化
+    │   └── startup_*.s          # 启动文件
+    ├── user/                    # 用户入口
+    │   ├── main.c               # 主函数 & 初始化
+    │   └── isr.c                # 中断服务函数
+    ├── skills/                  # AI Agent 调试方法论
+    └── .vscode/                 # VS Code C/C++ 配置
+        └── c_cpp_properties.json
 ```
 
 ---
@@ -51,7 +59,15 @@ car_v1.2/
 | PA7 | AIN2 | 电机 A 方向控制 2 |
 | PA4 | BIN1 | 电机 B 方向控制 1 |
 | PA3 | BIN2 | 电机 B 方向控制 2 |
-| PB12 | STBY | TB6612 使能（高电平有效） |
+| PB12 | STBY | 已硬接 3.3V，不再占用（引脚释放给 Key2） |
+
+### 菜单按键
+
+| 引脚 | 按键 | 说明 |
+|------|------|------|
+| PB11 | Key1 | 上翻 |
+| PB12 | Key2 | 下翻 |
+| PA12 | Key3 | 确认 / 进入菜单 |
 
 ### 编码器（速度反馈）
 
@@ -87,6 +103,38 @@ car_v1.2/
 | PB0 | MPU6050 INT | EXTI0 上升沿，数据就绪中断 |
 | PA13 | SWDIO | SWD 调试 |
 | PA14 | SWCLK | SWD 调试 |
+
+---
+
+## 📺 OLED 两级菜单系统
+
+基于 2024 电赛 H 题「自动行驶小车」设计，通过 3 个按键操作 OLED 128×64 屏幕。
+
+### 菜单结构
+
+```
+一级菜单（6项，2页）
+├── <- 返回（退出菜单回到巡线）
+├── 任务模式选择 → 任务1: A→B / 任务2: A-B-C-D-A / 任务3: A-C-B-D-A / 任务4: 自动4圈
+├── 速度参数设置 → 5 档巡线速度（FAST/MED/SLOW/SHARP/MIN）
+├── PID参数调节 → 电机 A/B 的 P/I/D 值
+├── 传感器数据   → 8 路灰度 + 编码器 实时刷新
+└── 系统信息     → 版本 + 当前任务编号
+```
+
+### 按键操作
+
+| 按键 | 主循环 | 菜单内 |
+|------|--------|--------|
+| Key3 (PA12) | 按下进入菜单 | 确认选中项 |
+| Key1 (PB11) | — | 上翻 |
+| Key2 (PB12) | — | 下翻 |
+
+### OLED 驱动变更
+
+- **旧驱动** `ml_oled.c`：行/列 API，直接写屏，无反显 → 已被 `headfile.h` 注释掉
+- **新驱动** `menu/oled.c`：像素坐标 X/Y API，显存架构 `OLED_DisplayBuf[8][128]`，支持 `OLED_ReverseArea()` 高亮、`OLED_Update()` 批量刷新
+- I2C 仍共用 PB6(SCL)/PB7(SDA)，与 MPU6050/HMC5883L 同一条总线
 
 ---
 
